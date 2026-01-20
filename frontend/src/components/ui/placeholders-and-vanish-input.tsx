@@ -15,16 +15,17 @@ export function PlaceholdersAndVanishInput({
 
   const intervalRef = useRef<any>(null);
   const startAnimation = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
       setCurrentPlaceholder((prev) => (prev + 1) % placeholders.length);
     }, 3000);
   };
   const handleVisibilityChange = () => {
     if (document.visibilityState !== "visible" && intervalRef.current) {
-      clearInterval(intervalRef.current); // Clear the interval when the tab is not visible
+      clearInterval(intervalRef.current);
       intervalRef.current = null;
-    } else if (document.visibilityState === "visible") {
-      startAnimation(); // Restart the interval when the tab becomes visible
+    } else if (document.visibilityState === "visible" && !intervalRef.current) {
+      startAnimation();
     }
   };
 
