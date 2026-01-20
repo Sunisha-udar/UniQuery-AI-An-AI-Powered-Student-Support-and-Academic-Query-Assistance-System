@@ -1,74 +1,201 @@
-# React + TypeScript + Vite
+# UniQuery AI
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+AI-powered academic assistant for universities. Students ask questions, get instant answers from official documents with citations.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 🎓 **Academic RAG System** - Retrieval-Augmented Generation for university documents
+- 🔍 **Semantic Search** - Qdrant vector database with BGE embeddings
+- 🎯 **Metadata Filtering** - Program, department, semester-based routing
+- 📚 **Document Management** - Upload, version, and manage academic PDFs
+- 👥 **Role-Based Access** - Student and admin dashboards
+- 🔐 **Firebase Auth** - Secure authentication and user management
+- 📊 **Analytics Dashboard** - Query tracking and usage insights
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Frontend
+- React 19 + TypeScript
+- Vite
+- Tailwind CSS 4
+- Firebase SDK
+- React Router
 
-## Expanding the ESLint configuration
+### Backend
+- FastAPI (Python)
+- Qdrant Cloud (Vector DB)
+- BGE-Small-EN (Embeddings)
+- Groq (LLM) - Coming soon
+- Firebase Admin SDK
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Quick Start
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Prerequisites
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- Node.js 18+
+- Python 3.8+
+- Qdrant Cloud account (free tier)
+- Firebase project
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 1. Clone Repository
+
+```bash
+git clone https://github.com/yourusername/uni-query-ai.git
+cd uni-query-ai
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 2. Backend Setup
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```bash
+cd backend
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure environment
+cp ../.env.example .env
+# Edit .env and add your Qdrant credentials
+
+# Test Qdrant connection
+python test_qdrant.py
+
+# Start backend
+uvicorn app.main:app --reload --port 8000
 ```
-# uni-query-ai
+
+See [backend/QDRANT_SETUP.md](backend/QDRANT_SETUP.md) for detailed Qdrant setup.
+
+### 3. Frontend Setup
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Configure Firebase
+# Edit frontend/.env with your Firebase credentials
+
+# Start frontend
+npm run dev
+```
+
+Visit http://localhost:5173
+
+## Project Structure
+
+```
+uni-query-ai/
+├── backend/                 # FastAPI backend
+│   ├── app/
+│   │   ├── main.py         # App entry point
+│   │   ├── config.py       # Configuration
+│   │   ├── routers/        # API endpoints
+│   │   └── services/       # Business logic
+│   ├── test_qdrant.py      # Connection test
+│   ├── manage_qdrant.py    # CLI tool
+│   └── requirements.txt    # Python deps
+├── frontend/               # React frontend
+│   ├── src/
+│   │   ├── pages/         # Page components
+│   │   ├── components/    # UI components
+│   │   ├── contexts/      # React contexts
+│   │   └── lib/           # Utilities
+│   └── package.json       # Node deps
+├── uniquery_prd.md        # Product requirements
+└── README.md              # This file
+```
+
+## Documentation
+
+- [Product Requirements](uniquery_prd.md) - Full PRD with architecture
+- [Backend README](backend/README.md) - Backend setup and API docs
+- [Qdrant Setup Guide](backend/QDRANT_SETUP.md) - Vector DB configuration
+- [Service Documentation](backend/app/services/README.md) - Service API reference
+
+## Development Status
+
+### ✅ Completed
+- Frontend UI/UX (Student & Admin dashboards)
+- Firebase authentication
+- Qdrant Cloud integration
+- Vector search with metadata filtering
+- Document embedding pipeline
+- API structure
+
+### 🚧 In Progress
+- PDF processing pipeline
+- Groq LLM integration
+- RAG query logic
+- Document upload to Firebase Storage
+
+### 📋 Planned
+- Query logging and analytics
+- Document versioning
+- Multi-language support
+- Voice interaction
+- Mobile app
+
+## API Endpoints
+
+### Health Check
+```bash
+GET http://localhost:8000/health
+```
+
+### Authentication
+```bash
+POST /auth/verify
+GET /auth/me
+```
+
+### Documents
+```bash
+GET /documents
+POST /documents/upload
+DELETE /documents/{id}
+```
+
+### Query
+```bash
+POST /query
+```
+
+## Environment Variables
+
+### Backend (.env)
+```env
+QDRANT_URL=https://your-cluster.qdrant.io
+QDRANT_API_KEY=your-api-key
+QDRANT_COLLECTION_NAME=uniquery
+GROQ_API_KEY=your-groq-key
+```
+
+### Frontend (frontend/.env)
+```env
+VITE_FIREBASE_API_KEY=your-api-key
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
+VITE_FIREBASE_APP_ID=1:123456789:web:abc123
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Open a Pull Request
+
+## License
+
+MIT
+
+## Support
+
+For issues and questions:
+- Open an issue on GitHub
+- Check the documentation in `/backend` and `/frontend`
+- Review the PRD: `uniquery_prd.md`
