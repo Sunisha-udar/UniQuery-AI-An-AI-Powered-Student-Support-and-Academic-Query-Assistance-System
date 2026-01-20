@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Input } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
+import { LogoutModal } from '../../components/ui/LogoutModal'
 import {
     GraduationCap,
     LogOut,
@@ -53,12 +54,13 @@ const MOCK_DOCUMENTS = [
 ]
 
 export function AdminDocuments() {
-    const { user, logout } = useAuth()
+    const { user } = useAuth()
     const location = useLocation()
     const [searchQuery, setSearchQuery] = useState('')
     const [categoryFilter, setCategoryFilter] = useState('all')
     const [showUploadModal, setShowUploadModal] = useState(false)
     const [uploadSuccess, setUploadSuccess] = useState(false)
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
 
     const filteredDocs = MOCK_DOCUMENTS.filter(doc => {
         const matchesSearch = doc.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -127,12 +129,17 @@ export function AdminDocuments() {
                             <p className="text-xs text-text-muted">Administrator</p>
                         </div>
                     </div>
-                    <Button variant="ghost" size="sm" className="w-full justify-start" onClick={logout}>
+                    <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => setIsLogoutModalOpen(true)}>
                         <LogOut className="w-4 h-4 mr-2" />
                         Logout
                     </Button>
                 </div>
             </aside>
+
+            <LogoutModal
+                isOpen={isLogoutModalOpen}
+                onClose={() => setIsLogoutModalOpen(false)}
+            />
 
             {/* Main Content */}
             <main className="flex-1 ml-64 p-6">

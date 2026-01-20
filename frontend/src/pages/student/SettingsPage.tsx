@@ -1,14 +1,15 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, useMemo } from 'react'
 import { DashboardLayout } from '../../components/layout/DashboardLayout'
 import { useAuth } from '../../contexts/AuthContext'
 import { Card, CardContent, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
+import { SaveChangesModal } from '../../components/ui/SaveChangesModal'
 import { User, Mail, Phone, BookOpen, Building, Hash, FileText, Settings } from 'lucide-react'
 
 export function SettingsPage() {
     const { user, updateUser } = useAuth()
-    const [loading, setLoading] = useState(false)
+    const [showSaveModal, setShowSaveModal] = useState(false)
     const [success, setSuccess] = useState('')
     const [error, setError] = useState('')
 
@@ -22,23 +23,82 @@ export function SettingsPage() {
         semester: user?.semester?.toString() || '',
     })
 
-    const handleSubmit = async (e: FormEvent) => {
+    // Calculate changes for the modal
+    const changes = useMemo(() => {
+        const changesList: Array<{ field: string; oldValue: string; newValue: string }> = []
+        
+        if (formData.displayName !== (user?.displayName || '')) {
+            changesList.push({
+                field: 'displayName',
+                oldValue: user?.displayName || '',
+                newValue: formData.displayName
+            })
+        }
+        if (formData.phoneNumber !== (user?.phoneNumber || '')) {
+            changesList.push({
+                field: 'phoneNumber',
+                oldValue: user?.phoneNumber || '',
+                newValue: formData.phoneNumber
+            })
+        }
+        if (formData.studentId !== (user?.studentId || '')) {
+            changesList.push({
+                field: 'studentId',
+                oldValue: user?.studentId || '',
+                newValue: formData.studentId
+            })
+        }
+        if (formData.bio !== (user?.bio || '')) {
+            changesList.push({
+                field: 'bio',
+                oldValue: user?.bio || '',
+                newValue: formData.bio
+            })
+        }
+        if (formData.program !== (user?.program || '')) {
+            changesList.push({
+                field: 'program',
+                oldValue: user?.program || '',
+                newValue: formData.program
+            })
+        }
+        if (formData.department !== (user?.department || '')) {
+            changesList.push({
+                field: 'department',
+                oldValue: user?.department || '',
+                newValue: formData.department
+            })
+        }
+        if (formData.semester !== (user?.semester?.toString() || '')) {
+            changesList.push({
+                field: 'semester',
+                oldValue: user?.semester?.toString() || '',
+                newValue: formData.semester
+            })
+        }
+        
+        return changesList
+    }, [formData, user])
+
+    const handleSubmit = (e: FormEvent) => {
         e.preventDefault()
-        setLoading(true)
+        setError('')
+        setSuccess('')
+        
+        // Show confirmation modal
+        setShowSaveModal(true)
+    }
+
+    const handleConfirmSave = async () => {
         setError('')
         setSuccess('')
 
-        try {
-            await updateUser({
-                ...formData,
-                semester: formData.semester ? parseInt(formData.semester) : undefined
-            })
-            setSuccess('Profile updated successfully!')
-        } catch {
-            setError('Failed to update profile.')
-        } finally {
-            setLoading(false)
-        }
+        await updateUser({
+            ...formData,
+            semester: formData.semester ? parseInt(formData.semester) : undefined
+        })
+        setSuccess('Profile updated successfully!')
+        setTimeout(() => setSuccess(''), 3000)
     }
 
     return (
@@ -150,13 +210,22 @@ export function SettingsPage() {
                             </div>
 
                             <div className="flex justify-end pt-4">
-                                <Button type="submit" loading={loading} className="w-full md:w-auto">
+                                <Button type="submit" disabled={changes.length === 0} className="w-full md:w-auto">
                                     Save Changes
                                 </Button>
                             </div>
                         </form>
                     </CardContent>
                 </Card>
+
+                <SaveChangesModal
+                    isOpen={showSaveModal}
+                    onClose={() => setShowSaveModal(false)}
+                    onConfirm={handleConfirmSave}
+                    title="Save Profile Changes"
+                    description="Are you sure you want to save these changes to your profile?"
+                    changes={changes}
+                />
             </div>
         </DashboardLayout>
     )

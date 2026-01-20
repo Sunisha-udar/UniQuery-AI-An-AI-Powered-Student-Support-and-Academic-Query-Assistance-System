@@ -9,14 +9,14 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, variant }: DashboardLayoutProps) {
 
     return (
-        <div className="min-h-screen bg-background flex">
+        <div className="h-screen bg-background flex overflow-hidden">
             <Sidebar variant={variant} />
 
             {/* Main Content */}
-            <div className="ml-64 flex-1 min-w-0">
+            <div className="ml-64 flex-1 min-w-0 flex flex-col">
                 {/* Page Content */}
-                <main className="p-6 w-full">
-                    <div className="max-w-[1600px] mx-auto">
+                <main className="p-6 w-full flex-1 overflow-auto">
+                    <div className="max-w-[1600px] mx-auto h-full">
                         {children}
                     </div>
                 </main>

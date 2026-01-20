@@ -1,12 +1,15 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, useMemo } from 'react'
 import { DashboardLayout } from '../../components/layout/DashboardLayout'
 import { Card, CardContent, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
+import { Select } from '../../components/ui/Select'
+import { SaveChangesModal } from '../../components/ui/SaveChangesModal'
 import { Settings, Shield, Database, Mail, Globe } from 'lucide-react'
 
 export function AdminSettings() {
-    const [loading, setLoading] = useState(false)
+    const [showSaveModal, setShowSaveModal] = useState(false)
+    const [currentSection, setCurrentSection] = useState<'general' | 'email' | 'ai'>('general')
     const [success, setSuccess] = useState('')
 
     const [generalSettings, setGeneralSettings] = useState({
@@ -16,12 +19,16 @@ export function AdminSettings() {
         sessionTimeout: '30',
     })
 
+    const [initialGeneralSettings] = useState(generalSettings)
+
     const [emailSettings, setEmailSettings] = useState({
         smtpHost: 'smtp.university.edu',
         smtpPort: '587',
         smtpUser: 'noreply@university.edu',
         enableNotifications: true,
     })
+
+    const [initialEmailSettings] = useState(emailSettings)
 
     const [aiSettings, setAISettings] = useState({
         model: 'gpt-4',
@@ -30,17 +37,121 @@ export function AdminSettings() {
         confidenceThreshold: '70',
     })
 
-    const handleSave = async (e: FormEvent, section: string) => {
-        e.preventDefault()
-        setLoading(true)
-        setSuccess('')
+    const [initialAISettings] = useState(aiSettings)
 
+    // Calculate changes based on current section
+    const changes = useMemo(() => {
+        const changesList: Array<{ field: string; oldValue: string; newValue: string }> = []
+        
+        if (currentSection === 'general') {
+            if (generalSettings.siteName !== initialGeneralSettings.siteName) {
+                changesList.push({
+                    field: 'siteName',
+                    oldValue: initialGeneralSettings.siteName,
+                    newValue: generalSettings.siteName
+                })
+            }
+            if (generalSettings.supportEmail !== initialGeneralSettings.supportEmail) {
+                changesList.push({
+                    field: 'supportEmail',
+                    oldValue: initialGeneralSettings.supportEmail,
+                    newValue: generalSettings.supportEmail
+                })
+            }
+            if (generalSettings.maxFileSize !== initialGeneralSettings.maxFileSize) {
+                changesList.push({
+                    field: 'maxFileSize',
+                    oldValue: initialGeneralSettings.maxFileSize + ' MB',
+                    newValue: generalSettings.maxFileSize + ' MB'
+                })
+            }
+            if (generalSettings.sessionTimeout !== initialGeneralSettings.sessionTimeout) {
+                changesList.push({
+                    field: 'sessionTimeout',
+                    oldValue: initialGeneralSettings.sessionTimeout + ' min',
+                    newValue: generalSettings.sessionTimeout + ' min'
+                })
+            }
+        } else if (currentSection === 'email') {
+            if (emailSettings.smtpHost !== initialEmailSettings.smtpHost) {
+                changesList.push({
+                    field: 'smtpHost',
+                    oldValue: initialEmailSettings.smtpHost,
+                    newValue: emailSettings.smtpHost
+                })
+            }
+            if (emailSettings.smtpPort !== initialEmailSettings.smtpPort) {
+                changesList.push({
+                    field: 'smtpPort',
+                    oldValue: initialEmailSettings.smtpPort,
+                    newValue: emailSettings.smtpPort
+                })
+            }
+            if (emailSettings.smtpUser !== initialEmailSettings.smtpUser) {
+                changesList.push({
+                    field: 'smtpUser',
+                    oldValue: initialEmailSettings.smtpUser,
+                    newValue: emailSettings.smtpUser
+                })
+            }
+            if (emailSettings.enableNotifications !== initialEmailSettings.enableNotifications) {
+                changesList.push({
+                    field: 'enableNotifications',
+                    oldValue: initialEmailSettings.enableNotifications ? 'Enabled' : 'Disabled',
+                    newValue: emailSettings.enableNotifications ? 'Enabled' : 'Disabled'
+                })
+            }
+        } else if (currentSection === 'ai') {
+            if (aiSettings.model !== initialAISettings.model) {
+                changesList.push({
+                    field: 'aiModel',
+                    oldValue: initialAISettings.model,
+                    newValue: aiSettings.model
+                })
+            }
+            if (aiSettings.temperature !== initialAISettings.temperature) {
+                changesList.push({
+                    field: 'temperature',
+                    oldValue: initialAISettings.temperature,
+                    newValue: aiSettings.temperature
+                })
+            }
+            if (aiSettings.maxTokens !== initialAISettings.maxTokens) {
+                changesList.push({
+                    field: 'maxTokens',
+                    oldValue: initialAISettings.maxTokens,
+                    newValue: aiSettings.maxTokens
+                })
+            }
+            if (aiSettings.confidenceThreshold !== initialAISettings.confidenceThreshold) {
+                changesList.push({
+                    field: 'confidenceThreshold',
+                    oldValue: initialAISettings.confidenceThreshold + '%',
+                    newValue: aiSettings.confidenceThreshold + '%'
+                })
+            }
+        }
+        
+        return changesList
+    }, [currentSection, generalSettings, initialGeneralSettings, emailSettings, initialEmailSettings, aiSettings, initialAISettings])
+
+    const handleSave = (e: FormEvent, section: 'general' | 'email' | 'ai') => {
+        e.preventDefault()
+        setSuccess('')
+        setCurrentSection(section)
+        setShowSaveModal(true)
+    }
+
+    const handleConfirmSave = async () => {
+        setSuccess('')
+        
         // Simulate save
-        setTimeout(() => {
-            setSuccess(`${section} settings saved successfully!`)
-            setLoading(false)
-            setTimeout(() => setSuccess(''), 3000)
-        }, 1000)
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        
+        const sectionName = currentSection === 'general' ? 'General' : 
+                           currentSection === 'email' ? 'Email' : 'AI'
+        setSuccess(`${sectionName} settings saved successfully!`)
+        setTimeout(() => setSuccess(''), 3000)
     }
 
     return (
@@ -72,7 +183,7 @@ export function AdminSettings() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <form onSubmit={(e) => handleSave(e, 'General')} className="space-y-4">
+                        <form onSubmit={(e) => handleSave(e, 'general')} className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Input
                                     label="Site Name"
@@ -99,7 +210,7 @@ export function AdminSettings() {
                                 />
                             </div>
                             <div className="flex justify-end">
-                                <Button type="submit" loading={loading} className="w-full md:w-auto">
+                                <Button type="submit" disabled={changes.length === 0} className="w-full md:w-auto">
                                     Save Changes
                                 </Button>
                             </div>
@@ -116,7 +227,7 @@ export function AdminSettings() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <form onSubmit={(e) => handleSave(e, 'Email')} className="space-y-4">
+                        <form onSubmit={(e) => handleSave(e, 'email')} className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Input
                                     label="SMTP Host"
@@ -151,7 +262,7 @@ export function AdminSettings() {
                                 </label>
                             </div>
                             <div className="flex justify-end">
-                                <Button type="submit" loading={loading} className="w-full md:w-auto">
+                                <Button type="submit" className="w-full md:w-auto">
                                     Save Changes
                                 </Button>
                             </div>
@@ -168,21 +279,18 @@ export function AdminSettings() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <form onSubmit={(e) => handleSave(e, 'AI')} className="space-y-4">
+                        <form onSubmit={(e) => handleSave(e, 'ai')} className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-medium text-text-muted mb-2">AI Model</label>
-                                    <select
-                                        value={aiSettings.model}
-                                        onChange={(e) => setAISettings({ ...aiSettings, model: e.target.value })}
-                                        className="w-full h-10 px-3 rounded-lg border border-border bg-surface text-text focus:outline-none focus:ring-2 focus:ring-primary/30"
-                                        aria-label="Select AI Model"
-                                    >
-                                        <option value="gpt-4">GPT-4</option>
-                                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                                        <option value="claude-3">Claude 3</option>
-                                    </select>
-                                </div>
+                                <Select
+                                    label="AI Model"
+                                    options={[
+                                        { value: 'gpt-4', label: 'GPT-4' },
+                                        { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
+                                        { value: 'claude-3', label: 'Claude 3' },
+                                    ]}
+                                    value={aiSettings.model}
+                                    onChange={(e) => setAISettings({ ...aiSettings, model: e.target.value })}
+                                />
                                 <Input
                                     label="Temperature"
                                     type="number"
@@ -208,7 +316,7 @@ export function AdminSettings() {
                                 />
                             </div>
                             <div className="flex justify-end">
-                                <Button type="submit" loading={loading} className="w-full md:w-auto">
+                                <Button type="submit" className="w-full md:w-auto">
                                     Save Changes
                                 </Button>
                             </div>
@@ -259,6 +367,15 @@ export function AdminSettings() {
                         </div>
                     </CardContent>
                 </Card>
+
+                <SaveChangesModal
+                    isOpen={showSaveModal}
+                    onClose={() => setShowSaveModal(false)}
+                    onConfirm={handleConfirmSave}
+                    title={`Save ${currentSection === 'general' ? 'General' : currentSection === 'email' ? 'Email' : 'AI'} Settings`}
+                    description={`Are you sure you want to save these ${currentSection} configuration changes?`}
+                    changes={changes}
+                />
             </div>
         </DashboardLayout>
     )

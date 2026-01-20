@@ -1,6 +1,8 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { Badge } from '../ui/Badge'
+import { LogoutModal } from '../ui/LogoutModal'
 import {
     LayoutDashboard,
     FileText,
@@ -40,9 +42,10 @@ const STUDENT_NAV: NavItem[] = [
 ]
 
 export function Sidebar({ variant }: SidebarProps) {
-    const { logout } = useAuth()
+    const { user } = useAuth()
     const location = useLocation()
     const navItems = variant === 'admin' ? ADMIN_NAV : STUDENT_NAV
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
 
     return (
         <aside className="w-64 bg-surface border-r border-border h-screen flex flex-col fixed left-0 top-0 z-30">
@@ -89,18 +92,25 @@ export function Sidebar({ variant }: SidebarProps) {
                         <User className="w-5 h-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-text truncate">Administrator</p>
-                        <p className="text-xs text-text-muted">Admin</p>
+                        <p className="text-sm font-medium text-text truncate">
+                            {user?.displayName || user?.email || 'User'}
+                        </p>
+                        <p className="text-xs text-text-muted capitalize">{variant}</p>
                     </div>
                 </div>
                 <button
-                    onClick={logout}
+                    onClick={() => setIsLogoutModalOpen(true)}
                     className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-text-muted hover:text-text hover:bg-background transition-colors"
                 >
                     <LogOut className="w-4 h-4" />
                     Logout
                 </button>
             </div>
+
+            <LogoutModal
+                isOpen={isLogoutModalOpen}
+                onClose={() => setIsLogoutModalOpen(false)}
+            />
         </aside>
     )
 }

@@ -66,6 +66,8 @@ export function StudentDashboard() {
     const [query, setQuery] = useState('')
     const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES)
     const [activeAnswer, setActiveAnswer] = useState<Message | null>(null)
+    const [isTyping, setIsTyping] = useState(false)
+    const [displayedText, setDisplayedText] = useState('')
     const [showMenu, setShowMenu] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const menuRef = useRef<HTMLDivElement>(null)
@@ -76,7 +78,26 @@ export function StudentDashboard() {
 
     useEffect(() => {
         scrollToBottom()
-    }, [messages])
+    }, [messages, isTyping, displayedText])
+
+    useEffect(() => {
+        if (activeAnswer && activeAnswer.text) {
+            let currentIndex = 0
+            setDisplayedText('')
+            const text = activeAnswer.text
+            
+            const interval = setInterval(() => {
+                if (currentIndex < text.length) {
+                    setDisplayedText(text.substring(0, currentIndex + 1))
+                    currentIndex++
+                } else {
+                    clearInterval(interval)
+                }
+            }, 20) // Adjust speed here (lower = faster)
+
+            return () => clearInterval(interval)
+        }
+    }, [activeAnswer])
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -124,16 +145,20 @@ export function StudentDashboard() {
             text: query,
         }
         setMessages(prev => [...prev, newMessage])
-
-        // Mock answer
-        setActiveAnswer({
-            id: 'answer-' + Date.now(),
-            type: 'assistant',
-            text: 'Based on the academic documents, I found relevant information for your query. Please note that specific details may vary by department.',
-            source: 'Academic Handbook 2024, Page 12'
-        })
-
+        setActiveAnswer(null)
+        setIsTyping(true)
         setQuery('')
+
+        // Simulate AI thinking/processing time
+        setTimeout(() => {
+            setIsTyping(false)
+            setActiveAnswer({
+                id: 'answer-' + Date.now(),
+                type: 'assistant',
+                text: 'Based on the academic documents, I found relevant information for your query. Please note that specific details may vary by department.',
+                source: 'Academic Handbook 2024, Page 12'
+            })
+        }, 1000)
     }
 
     const handlePopularQuestion = (question: string) => {
@@ -143,30 +168,36 @@ export function StudentDashboard() {
             text: question,
         }
         setMessages(prev => [...prev, newMessage])
+        setActiveAnswer(null)
+        setIsTyping(true)
 
-        // Mock answer for popular question
-        if (question.includes('attendance')) {
-            setActiveAnswer({
-                id: 'answer-' + generateId(),
-                type: 'assistant',
-                text: 'BCA students must maintain a minimum of 75% attendance in each semester to be eligible for exams. Leaves of absence will only be considered if supported by valid medical or other official documents.',
-                source: 'Attendance Rules.pdf, Page 3'
-            })
-        } else {
-            setActiveAnswer({
-                id: 'answer-' + generateId(),
-                type: 'assistant',
-                text: 'I found relevant information in the academic documents. Please refer to the source for detailed information.',
-                source: 'Academic Handbook 2024'
-            })
-        }
+        // Simulate AI thinking/processing time
+        setTimeout(() => {
+            setIsTyping(false)
+            // Mock answer for popular question
+            if (question.includes('attendance')) {
+                setActiveAnswer({
+                    id: 'answer-' + generateId(),
+                    type: 'assistant',
+                    text: 'BCA students must maintain a minimum of 75% attendance in each semester to be eligible for exams. Leaves of absence will only be considered if supported by valid medical or other official documents.',
+                    source: 'Attendance Rules.pdf, Page 3'
+                })
+            } else {
+                setActiveAnswer({
+                    id: 'answer-' + generateId(),
+                    type: 'assistant',
+                    text: 'I found relevant information in the academic documents. Please refer to the source for detailed information.',
+                    source: 'Academic Handbook 2024'
+                })
+            }
+        }, 1000)
     }
 
     return (
         <DashboardLayout variant="student">
-            <div className="space-y-6">
+            <div className="flex flex-col h-full gap-6">
                 {/* Header */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-shrink-0">
                     <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
                         <LayoutDashboard className="w-5 h-5 text-primary" />
                     </div>
@@ -177,7 +208,7 @@ export function StudentDashboard() {
                 </div>
 
                 {/* Ask a Question Section */}
-                <Card className="border border-border shadow-sm">
+                <Card className="border border-border shadow-sm flex-shrink-0">
                     <CardContent className="py-6">
                         <div className="flex items-center gap-3 mb-4">
                             <Select
@@ -211,7 +242,7 @@ export function StudentDashboard() {
                 </Card>
 
                 {/* Popular Questions + Answer Panel */}
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 chat-container-height">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 flex-1 min-h-0">
                     {/* Popular Questions */}
                     <Card className="h-fit border border-border shadow-sm">
                         <CardHeader>
@@ -227,7 +258,7 @@ export function StudentDashboard() {
                                     <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                                         <Play className="w-2.5 h-2.5 text-primary fill-primary" />
                                     </div>
-                                    <span className="text-xs text-text-muted group-hover:text-text transition-colors leading-relaxed">
+                                    <span className="text-sm text-text-muted group-hover:text-text transition-colors leading-relaxed">
                                         {question}
                                     </span>
                                 </button>
@@ -236,7 +267,7 @@ export function StudentDashboard() {
                     </Card>
 
                     {/* Answer Panel */}
-                    <Card className="lg:col-span-3 flex flex-col h-full border border-border shadow-sm">
+                    <Card className="lg:col-span-3 flex flex-col border border-border shadow-sm overflow-hidden">
                         <CardHeader className="flex flex-row items-center justify-between flex-shrink-0 border-b border-border">
                             <h2 className="text-sm font-semibold text-text">Chat</h2>
                             <div className="relative" ref={menuRef}>
@@ -284,45 +315,66 @@ export function StudentDashboard() {
                                     </div>
                                 )}
                                 {messages.map((msg) => (
-                                    <div key={msg.id} className="flex items-start gap-2.5">
+                                    <div key={msg.id} className="flex items-start gap-2.5 animate-fadeIn">
                                         <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                                             <User className="w-3.5 h-3.5 text-primary" />
                                         </div>
                                         <div className="flex-1 py-2.5 px-3.5 bg-background rounded-lg">
-                                            <p className="text-xs text-text leading-relaxed">{msg.text}</p>
+                                            <p className="text-sm text-text leading-relaxed">{msg.text}</p>
                                         </div>
                                     </div>
                                 ))}
 
-                                {/* AI Answer - Inside Chat Flow */}
-                                {activeAnswer && (
-                                    <div className="flex items-start gap-2.5">
+                                {/* Typing Indicator */}
+                                {isTyping && (
+                                    <div className="flex items-start gap-2.5 animate-fadeIn">
                                         <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
                                             <span className="text-white text-[10px] font-semibold">AI</span>
                                         </div>
                                         <div className="flex-1 py-3 px-3.5 bg-primary/5 rounded-lg border border-primary/10">
-                                            <p className="text-xs text-text leading-relaxed mb-2">
-                                                {activeAnswer.text}
+                                            <div className="flex items-center gap-1">
+                                                <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                                                <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                                                <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* AI Answer - Inside Chat Flow */}
+                                {activeAnswer && !isTyping && (
+                                    <div className="flex items-start gap-2.5 animate-fadeIn">
+                                        <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                                            <span className="text-white text-[10px] font-semibold">AI</span>
+                                        </div>
+                                        <div className="flex-1 py-3 px-3.5 bg-primary/5 rounded-lg border border-primary/10">
+                                            <p className="text-sm text-text leading-relaxed mb-2">
+                                                {displayedText}
+                                                {displayedText.length < activeAnswer.text.length && (
+                                                    <span className="inline-block w-1.5 h-4 bg-primary ml-0.5 animate-pulse"></span>
+                                                )}
                                             </p>
-                                            {activeAnswer.source && (
-                                                <p className="text-[11px] text-text-muted mt-2 pt-2 border-t border-border">
+                                            {activeAnswer.source && displayedText.length === activeAnswer.text.length && (
+                                                <p className="text-xs text-text-muted mt-2 pt-2 border-t border-border animate-fadeIn">
                                                     📄 {activeAnswer.source}
                                                 </p>
                                             )}
-                                            <div className="flex items-center gap-1.5 mt-3">
-                                                <button 
-                                                    className="p-1.5 rounded-md hover:bg-success/10 text-text-muted hover:text-success transition-colors"
-                                                    aria-label="Mark answer as helpful"
-                                                >
-                                                    <ThumbsUp className="w-3.5 h-3.5" />
-                                                </button>
-                                                <button 
-                                                    className="p-1.5 rounded-md hover:bg-error/10 text-text-muted hover:text-error transition-colors"
-                                                    aria-label="Mark answer as not helpful"
-                                                >
-                                                    <ThumbsDown className="w-3.5 h-3.5" />
-                                                </button>
-                                            </div>
+                                            {displayedText.length === activeAnswer.text.length && (
+                                                <div className="flex items-center gap-1.5 mt-3 animate-fadeIn">
+                                                    <button 
+                                                        className="p-1.5 rounded-md hover:bg-success/10 text-text-muted hover:text-success transition-all hover:scale-110"
+                                                        aria-label="Mark answer as helpful"
+                                                    >
+                                                        <ThumbsUp className="w-3.5 h-3.5" />
+                                                    </button>
+                                                    <button 
+                                                        className="p-1.5 rounded-md hover:bg-error/10 text-text-muted hover:text-error transition-all hover:scale-110"
+                                                        aria-label="Mark answer as not helpful"
+                                                    >
+                                                        <ThumbsDown className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
