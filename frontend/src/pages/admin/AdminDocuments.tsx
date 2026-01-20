@@ -135,13 +135,18 @@ export function AdminDocuments() {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 ml-64 p-8">
-                <div className="max-w-6xl mx-auto">
+            <main className="flex-1 ml-64 p-6">
+                <div className="max-w-[1600px] mx-auto">
                     {/* Header */}
-                    <div className="flex items-center justify-between mb-8">
-                        <div>
-                            <h1 className="text-2xl font-bold text-text">Documents</h1>
-                            <p className="text-text-muted mt-1">Manage uploaded academic documents</p>
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                                <FileText className="w-5 h-5 text-primary" />
+                            </div>
+                            <div>
+                                <h1 className="text-2xl font-bold text-text">Documents</h1>
+                                <p className="text-sm text-text-muted mt-1">Manage uploaded academic documents</p>
+                            </div>
                         </div>
                         <Button variant="cta" onClick={() => setShowUploadModal(true)}>
                             <Upload className="w-4 h-4 mr-2" />

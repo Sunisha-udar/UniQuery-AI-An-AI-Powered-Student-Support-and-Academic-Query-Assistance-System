@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { Card, CardContent, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
-import { User, Mail, Phone, BookOpen, Building, Hash, FileText } from 'lucide-react'
+import { User, Mail, Phone, BookOpen, Building, Hash, FileText, Settings } from 'lucide-react'
 
 export function SettingsPage() {
     const { user, updateUser } = useAuth()
@@ -44,11 +44,19 @@ export function SettingsPage() {
     return (
         <DashboardLayout variant="student">
             <div className="space-y-6">
-                <h1 className="text-2xl font-bold text-text">Settings</h1>
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Settings className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold text-text">Settings</h1>
+                        <p className="text-sm text-text-muted mt-1">Manage your profile and preferences</p>
+                    </div>
+                </div>
 
-                <Card>
-                    <CardHeader>
-                        <h2 className="text-lg font-semibold text-text">Profile Information</h2>
+                <Card className="border border-border shadow-sm">
+                    <CardHeader className="border-b border-border">
+                        <h2 className="text-sm font-semibold text-text">Profile Information</h2>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-4">
@@ -154,11 +162,11 @@ export function SettingsPage() {
     )
 }
 
-function FormGroup({ label, icon: Icon, children }: { label: string, icon: any, children: React.ReactNode }) {
+function FormGroup({ label, icon: Icon, children }: { label: string, icon: React.ComponentType<{ className?: string }>, children: React.ReactNode }) {
     return (
         <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-medium text-text-muted">
-                <Icon className="w-4 h-4" />
+            <label className="flex items-center gap-2 text-xs font-medium text-text-muted">
+                <Icon className="w-3.5 h-3.5" />
                 {label}
             </label>
             {children}

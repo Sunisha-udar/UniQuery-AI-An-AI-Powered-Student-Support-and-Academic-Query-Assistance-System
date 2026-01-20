@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { Badge } from '../ui/Badge'
 import {
     LayoutDashboard,
     FileText,
@@ -7,7 +8,9 @@ import {
     BarChart3,
     Settings,
     LogOut,
-    GraduationCap
+    GraduationCap,
+    User,
+    MessageSquare
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -23,9 +26,9 @@ interface SidebarProps {
 
 const ADMIN_NAV: NavItem[] = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/admin' },
-    { icon: FileText, label: 'Manage Documents', href: '/admin/documents' },
-    { icon: HelpCircle, label: 'User Queries', href: '/admin/queries' },
-    { icon: BarChart3, label: 'Statistics', href: '/admin/statistics' },
+    { icon: FileText, label: 'Documents', href: '/admin/documents' },
+    { icon: MessageSquare, label: 'Queries', href: '/admin/queries' },
+    { icon: BarChart3, label: 'Analytics', href: '/admin/analytics' },
     { icon: Settings, label: 'Settings', href: '/admin/settings' },
 ]
 
@@ -42,16 +45,20 @@ export function Sidebar({ variant }: SidebarProps) {
     const navItems = variant === 'admin' ? ADMIN_NAV : STUDENT_NAV
 
     return (
-        <aside className="w-[200px] bg-sidebar h-screen flex flex-col fixed left-0 top-0">
+        <aside className="w-64 bg-surface border-r border-border h-screen flex flex-col fixed left-0 top-0 z-30">
             {/* Logo */}
-            <div className="p-4 flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+            <div className="p-5 border-b border-border flex items-center gap-3 flex-shrink-0">
+                <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
                     <GraduationCap className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                    <span className="font-semibold text-text">UniQuery</span>
+                    <Badge variant="primary" className="ml-2 text-xs">{variant === 'admin' ? 'Admin' : 'Student'}</Badge>
                 </div>
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 px-3 py-2">
+            <nav className="flex-1 p-4 overflow-y-auto">
                 <ul className="space-y-1">
                     {navItems.map((item) => {
                         const isActive = location.pathname === item.href
@@ -60,10 +67,10 @@ export function Sidebar({ variant }: SidebarProps) {
                                 <Link
                                     to={item.href}
                                     className={clsx(
-                                        'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors duration-150',
+                                        'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200',
                                         isActive
-                                            ? 'bg-sidebar-active text-white'
-                                            : 'text-white/80 hover:bg-sidebar-hover hover:text-white'
+                                            ? 'bg-primary text-white'
+                                            : 'text-text-muted hover:text-text hover:bg-background'
                                     )}
                                 >
                                     <item.icon className="w-5 h-5" />
@@ -75,11 +82,20 @@ export function Sidebar({ variant }: SidebarProps) {
                 </ul>
             </nav>
 
-            {/* Logout */}
-            <div className="p-3">
+            {/* User Info */}
+            <div className="p-4 border-t border-border flex-shrink-0">
+                <div className="flex items-center gap-3 mb-3">
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
+                        <User className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-text truncate">Administrator</p>
+                        <p className="text-xs text-text-muted">Admin</p>
+                    </div>
+                </div>
                 <button
                     onClick={logout}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-md border border-primary text-primary bg-transparent hover:bg-primary hover:text-white transition-colors duration-150 text-sm font-medium cursor-pointer"
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-text-muted hover:text-text hover:bg-background transition-colors"
                 >
                     <LogOut className="w-4 h-4" />
                     Logout

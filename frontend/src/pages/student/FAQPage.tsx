@@ -36,17 +36,17 @@ export function FAQPage() {
     return (
         <DashboardLayout variant="student">
             <div className="space-y-6">
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-                        <HelpCircle className="w-6 h-6 text-white" />
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <HelpCircle className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-text">Frequently Asked Questions</h1>
-                        <p className="text-text-muted">Find answers to common queries</p>
+                        <h1 className="text-2xl font-bold text-text">FAQs</h1>
+                        <p className="text-sm text-text-muted">Find answers to common questions</p>
                     </div>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-3">
                     {FAQS.map((faq, index) => (
                         <Accordion key={index} item={faq} />
                     ))}
@@ -60,21 +60,21 @@ function Accordion({ item }: { item: FAQItem }) {
     const [isOpen, setIsOpen] = useState(false)
 
     return (
-        <Card className="overflow-hidden transition-all duration-200">
+        <Card className="overflow-hidden transition-all duration-200 border border-border shadow-sm hover:shadow-md">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center justify-between p-4 text-left hover:bg-background-secondary/50 transition-colors"
+                className="w-full flex items-center justify-between p-4 text-left hover:bg-background transition-colors"
             >
-                <span className="font-medium text-text">{item.question}</span>
+                <span className="text-sm font-medium text-text">{item.question}</span>
                 {isOpen ? (
-                    <ChevronUp className="w-5 h-5 text-text-muted" />
+                    <ChevronUp className="w-4 h-4 text-text-muted flex-shrink-0 ml-3" />
                 ) : (
-                    <ChevronDown className="w-5 h-5 text-text-muted" />
+                    <ChevronDown className="w-4 h-4 text-text-muted flex-shrink-0 ml-3" />
                 )}
             </button>
             <div
                 className={clsx(
-                    "px-4 text-sm text-text-muted bg-background-secondary/20 transition-all duration-200 ease-in-out border-t border-border",
+                    "px-4 text-xs text-text-muted bg-background transition-all duration-200 ease-in-out border-t border-border leading-relaxed",
                     isOpen ? "max-h-40 py-4 opacity-100" : "max-h-0 py-0 opacity-0 border-t-0"
                 )}
             >

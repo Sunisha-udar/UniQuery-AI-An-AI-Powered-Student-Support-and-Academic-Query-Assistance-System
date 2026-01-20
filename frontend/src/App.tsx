@@ -6,6 +6,9 @@ import { SignupPage } from './pages/auth/SignupPage'
 import { StudentDashboard } from './pages/student/StudentDashboard'
 import { AdminDashboard } from './pages/admin/AdminDashboard'
 import { AdminDocuments } from './pages/admin/AdminDocuments'
+import { AdminQueries } from './pages/admin/AdminQueries'
+import { AdminAnalytics } from './pages/admin/AdminAnalytics'
+import { AdminSettings } from './pages/admin/AdminSettings'
 import { SettingsPage } from './pages/student/SettingsPage'
 import { FAQPage } from './pages/student/FAQPage'
 import './index.css'
@@ -59,6 +62,30 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminDocuments />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/queries"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminQueries />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/analytics"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminAnalytics />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/settings"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminSettings />
               </ProtectedRoute>
             }
           />

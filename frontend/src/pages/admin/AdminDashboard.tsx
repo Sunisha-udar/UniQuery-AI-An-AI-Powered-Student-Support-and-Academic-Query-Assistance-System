@@ -9,7 +9,8 @@ import {
     Pencil,
     Trash2,
     ThumbsUp,
-    ThumbsDown
+    ThumbsDown,
+    LayoutDashboard
 } from 'lucide-react'
 
 const DEPARTMENTS = [
@@ -61,12 +62,23 @@ export function AdminDashboard() {
     return (
         <DashboardLayout variant="admin">
             <div className="space-y-6">
+                {/* Header */}
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <LayoutDashboard className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold text-text">Dashboard</h1>
+                        <p className="text-sm text-text-muted mt-1">Overview of system activity and performance</p>
+                    </div>
+                </div>
+
                 {/* Row 1: Documents + Recent Questions */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Upload & Manage Documents */}
-                    <Card className="lg:col-span-2">
+                    <Card className="lg:col-span-2 border border-border shadow-sm">
                         <CardHeader>
-                            <h2 className="text-base font-semibold text-text">Upload & Manage Documents</h2>
+                            <h2 className="text-sm font-semibold text-text">Upload & Manage Documents</h2>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {/* Department Select */}
@@ -82,26 +94,26 @@ export function AdminDashboard() {
 
                             {/* Uploaded Documents */}
                             <div>
-                                <h3 className="text-sm font-semibold text-text mb-3">Uploaded Documents</h3>
+                                <h3 className="text-xs font-semibold text-text-muted mb-3">Uploaded Documents</h3>
                                 <div className="space-y-2">
                                     {DOCUMENTS.map((doc) => (
                                         <div
                                             key={doc.id}
-                                            className="flex items-center justify-between py-2 px-3 bg-background rounded-md"
+                                            className="flex items-center justify-between py-2.5 px-3 bg-background rounded-lg hover:bg-border/30 transition-colors"
                                         >
                                             <div className="flex items-center gap-3">
                                                 <FileText className="w-4 h-4 text-primary" />
                                                 <span className="text-sm text-text">{doc.name}</span>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <Button variant="secondary" size="sm" className="h-7 px-3 text-xs">
-                                                    <Pencil className="w-3 h-3 mr-1" />
+                                                <button className="h-7 px-3 text-xs rounded-md bg-background border border-border hover:bg-surface transition-colors flex items-center gap-1">
+                                                    <Pencil className="w-3 h-3" />
                                                     Edit
-                                                </Button>
-                                                <Button variant="secondary" size="sm" className="h-7 px-3 text-xs">
-                                                    <Trash2 className="w-3 h-3 mr-1" />
+                                                </button>
+                                                <button className="h-7 px-3 text-xs rounded-md bg-background border border-border hover:bg-error/10 hover:text-error hover:border-error/30 transition-colors flex items-center gap-1">
+                                                    <Trash2 className="w-3 h-3" />
                                                     Delete
-                                                </Button>
+                                                </button>
                                             </div>
                                         </div>
                                     ))}
@@ -110,7 +122,7 @@ export function AdminDashboard() {
 
                             {/* Upload Button */}
                             <div className="flex justify-center pt-2">
-                                <Button className="bg-teal hover:bg-teal-hover text-white">
+                                <Button className="bg-primary hover:bg-primary-hover text-white">
                                     <Upload className="w-4 h-4 mr-2" />
                                     Upload New Document
                                 </Button>
@@ -119,26 +131,26 @@ export function AdminDashboard() {
                     </Card>
 
                     {/* Recent Questions */}
-                    <Card>
+                    <Card className="border border-border shadow-sm">
                         <CardHeader>
-                            <h2 className="text-base font-semibold text-text">Recent Questions</h2>
+                            <h2 className="text-sm font-semibold text-text">Recent Questions</h2>
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {RECENT_QUESTIONS.map((q) => (
-                                <div key={q.id} className="flex items-start gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-                                    <p className="text-sm text-text">
+                                <div key={q.id} className="flex items-start gap-3 p-2 hover:bg-background rounded-lg transition-colors">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
+                                    <p className="text-sm text-text leading-relaxed">
                                         {q.text.split(q.keyword).map((part, i, arr) => (
                                             <span key={i}>
                                                 {part}
-                                                {i < arr.length - 1 && <strong className="font-semibold">{q.keyword}</strong>}
+                                                {i < arr.length - 1 && <strong className="font-semibold text-primary">{q.keyword}</strong>}
                                             </span>
                                         ))}
                                     </p>
                                 </div>
                             ))}
                             <div className="pt-2">
-                                <Button variant="primary" size="sm" className="w-full">
+                                <Button className="w-full bg-primary hover:bg-primary-hover text-white">
                                     View All Queries
                                 </Button>
                             </div>
@@ -149,9 +161,9 @@ export function AdminDashboard() {
                 {/* Row 2: Analytics */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Query Activity */}
-                    <Card>
+                    <Card className="border border-border shadow-sm">
                         <CardHeader>
-                            <h2 className="text-base font-semibold text-text">Query Activity</h2>
+                            <h2 className="text-sm font-semibold text-text">Query Activity</h2>
                         </CardHeader>
                         <CardContent>
                             <div className="flex items-baseline gap-4 mb-4">
@@ -168,6 +180,7 @@ export function AdminDashboard() {
                                     <div key={i} className="flex-1 flex flex-col items-center gap-1">
                                         <div
                                             className="w-full bg-primary/80 rounded-t-sm transition-all duration-300 hover:bg-primary"
+                                            data-height={`${(item.value / maxValue) * 100}%`}
                                             style={{ height: `${(item.value / maxValue) * 100}%` }}
                                         />
                                         <span className="text-[10px] text-text-muted">{item.day}</span>
@@ -178,15 +191,17 @@ export function AdminDashboard() {
                     </Card>
 
                     {/* Top Documents Accessed */}
-                    <Card>
+                    <Card className="border border-border shadow-sm">
                         <CardHeader>
-                            <h2 className="text-base font-semibold text-text">Top Documents Accessed</h2>
+                            <h2 className="text-sm font-semibold text-text">Top Documents Accessed</h2>
                         </CardHeader>
                         <CardContent>
                             <ol className="space-y-3">
                                 {TOP_DOCUMENTS.map((doc, i) => (
-                                    <li key={i} className="flex items-center gap-3">
-                                        <span className="text-sm text-text-muted">{i + 1}.</span>
+                                    <li key={i} className="flex items-center gap-3 p-2 hover:bg-background rounded-lg transition-colors">
+                                        <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                            <span className="text-xs font-semibold text-primary">{i + 1}</span>
+                                        </div>
                                         <span className="text-sm text-text">{doc}</span>
                                     </li>
                                 ))}
@@ -195,28 +210,29 @@ export function AdminDashboard() {
                     </Card>
 
                     {/* User Feedback */}
-                    <Card>
+                    <Card className="border border-border shadow-sm">
                         <CardHeader>
-                            <h2 className="text-base font-semibold text-text">User Feedback</h2>
+                            <h2 className="text-sm font-semibold text-text">User Feedback</h2>
                         </CardHeader>
                         <CardContent>
                             <div className="flex items-center justify-center gap-8 py-4">
-                                <div className="flex items-center gap-2">
-                                    <ThumbsUp className="w-5 h-5 text-success" />
-                                    <span className="text-sm">
-                                        <span className="font-medium text-text">Helpful:</span>{' '}
-                                        <span className="text-success font-semibold">85%</span>
-                                    </span>
+                                <div className="flex flex-col items-center gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <ThumbsUp className="w-5 h-5 text-success" />
+                                        <span className="text-2xl font-bold text-success">85%</span>
+                                    </div>
+                                    <span className="text-xs text-text-muted">Helpful</span>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <ThumbsDown className="w-5 h-5 text-error" />
-                                    <span className="text-sm">
-                                        <span className="font-medium text-text">Not Helpful:</span>{' '}
-                                        <span className="text-error font-semibold">15%</span>
-                                    </span>
+                                <div className="w-px h-12 bg-border"></div>
+                                <div className="flex flex-col items-center gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <ThumbsDown className="w-5 h-5 text-error" />
+                                        <span className="text-2xl font-bold text-error">15%</span>
+                                    </div>
+                                    <span className="text-xs text-text-muted">Not Helpful</span>
                                 </div>
                             </div>
-                            <Button variant="primary" size="sm" className="w-full">
+                            <Button className="w-full bg-primary hover:bg-primary-hover text-white mt-4">
                                 View Feedback
                             </Button>
                         </CardContent>

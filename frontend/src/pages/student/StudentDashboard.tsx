@@ -14,7 +14,8 @@ import {
     MoreVertical,
     Trash2,
     MessageSquarePlus,
-    Download
+    Download,
+    LayoutDashboard
 } from 'lucide-react'
 
 const COURSES = [
@@ -58,8 +59,9 @@ const generateId = () => Math.random().toString(36).substr(2, 9)
 
 export function StudentDashboard() {
     const { user } = useAuth()
-    const [course, setCourse] = useState(user?.program || '')
-    const [semester, setSemester] = useState(user?.semester?.toString() || '')
+    // Use lazy initializer to avoid reading user during render
+    const [course, setCourse] = useState(() => user?.program || '')
+    const [semester, setSemester] = useState(() => user?.semester?.toString() || '')
     const [subject, setSubject] = useState('')
     const [query, setQuery] = useState('')
     const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES)
@@ -71,11 +73,6 @@ export function StudentDashboard() {
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
-
-    useEffect(() => {
-        if (user?.program) setCourse(user.program)
-        if (user?.semester) setSemester(user.semester.toString())
-    }, [user])
 
     useEffect(() => {
         scrollToBottom()
@@ -168,23 +165,32 @@ export function StudentDashboard() {
     return (
         <DashboardLayout variant="student">
             <div className="space-y-6">
-                {/* Ask a Question Section */}
-                <Card className="bg-gradient-to-r from-sidebar to-primary/90">
-                    <CardContent className="py-5">
-                        <h2 className="text-lg font-semibold text-white mb-4">Ask a question:</h2>
+                {/* Header */}
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <LayoutDashboard className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold text-text">Dashboard</h1>
+                        <p className="text-sm text-text-muted">Ask questions about your academic documents</p>
+                    </div>
+                </div>
 
-                        <div className="flex items-center gap-3 mb-3">
+                {/* Ask a Question Section */}
+                <Card className="border border-border shadow-sm">
+                    <CardContent className="py-6">
+                        <div className="flex items-center gap-3 mb-4">
                             <Select
                                 options={COURSES}
                                 value={course}
                                 onChange={(e) => setCourse(e.target.value)}
-                                className="flex-1 bg-white"
+                                className="flex-1"
                             />
                             <Select
                                 options={SEMESTERS}
                                 value={semester}
                                 onChange={(e) => setSemester(e.target.value)}
-                                className="flex-1 bg-white"
+                                className="flex-1"
                             />
                             <div className="flex-1 relative">
                                 <input
@@ -192,39 +198,36 @@ export function StudentDashboard() {
                                     placeholder="Select Subject"
                                     value={subject}
                                     onChange={(e) => setSubject(e.target.value)}
-                                    className="w-full h-10 pl-3 pr-10 rounded-lg border border-border bg-white text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-white/50"
+                                    className="w-full h-10 pl-3 pr-10 rounded-lg border border-border bg-white text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
                                 />
                                 <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                             </div>
-                            <Button className="bg-primary hover:bg-primary-hover text-white px-6">
-                                Ask
-                            </Button>
                         </div>
 
-                        <p className="text-sm text-white/70">
-                            Hint: Ask questions like "What is the attendance requirement for BCA?" or "When are the internal exams scheduled?"
+                        <p className="text-xs text-text-muted">
+                            💡 Try: "What is the attendance requirement?" or "When are exams scheduled?"
                         </p>
                     </CardContent>
                 </Card>
 
                 {/* Popular Questions + Answer Panel */}
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6" style={{ height: 'calc(100vh - 280px)' }}>
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 chat-container-height">
                     {/* Popular Questions */}
-                    <Card className="h-fit">
+                    <Card className="h-fit border border-border shadow-sm">
                         <CardHeader>
-                            <h2 className="text-base font-semibold text-text">Popular Questions</h2>
+                            <h2 className="text-sm font-semibold text-text">Popular Questions</h2>
                         </CardHeader>
                         <CardContent className="space-y-2">
                             {POPULAR_QUESTIONS.map((question, i) => (
                                 <button
                                     key={i}
                                     onClick={() => handlePopularQuestion(question)}
-                                    className="w-full flex items-start gap-3 p-3 rounded-lg bg-background hover:bg-border/50 transition-colors cursor-pointer text-left group"
+                                    className="w-full flex items-start gap-2 p-3 rounded-lg hover:bg-background transition-all cursor-pointer text-left group border border-transparent hover:border-border"
                                 >
-                                    <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                                        <Play className="w-3 h-3 text-white fill-white" />
+                                    <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <Play className="w-2.5 h-2.5 text-primary fill-primary" />
                                     </div>
-                                    <span className="text-sm text-text group-hover:text-primary transition-colors">
+                                    <span className="text-xs text-text-muted group-hover:text-text transition-colors leading-relaxed">
                                         {question}
                                     </span>
                                 </button>
@@ -233,38 +236,39 @@ export function StudentDashboard() {
                     </Card>
 
                     {/* Answer Panel */}
-                    <Card className="lg:col-span-3 flex flex-col h-full">
-                        <CardHeader className="flex flex-row items-center justify-between flex-shrink-0">
-                            <h2 className="text-base font-semibold text-text">Answer</h2>
+                    <Card className="lg:col-span-3 flex flex-col h-full border border-border shadow-sm">
+                        <CardHeader className="flex flex-row items-center justify-between flex-shrink-0 border-b border-border">
+                            <h2 className="text-sm font-semibold text-text">Chat</h2>
                             <div className="relative" ref={menuRef}>
                                 <button
                                     onClick={() => setShowMenu(!showMenu)}
-                                    className="p-1 rounded hover:bg-border/50 transition-colors"
+                                    className="p-1.5 rounded-md hover:bg-background transition-colors"
+                                    aria-label="Open chat menu"
                                 >
-                                    <MoreVertical className="w-5 h-5 text-text-muted" />
+                                    <MoreVertical className="w-4 h-4 text-text-muted" />
                                 </button>
 
                                 {showMenu && (
-                                    <div className="absolute right-0 top-8 w-48 bg-surface border border-border rounded-lg shadow-lg py-1 z-10">
+                                    <div className="absolute right-0 top-9 w-44 bg-white border border-border rounded-lg shadow-lg py-1 z-10">
                                         <button
                                             onClick={handleStartNewChat}
-                                            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-text hover:bg-background transition-colors"
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text hover:bg-background transition-colors"
                                         >
-                                            <MessageSquarePlus className="w-4 h-4" />
+                                            <MessageSquarePlus className="w-3.5 h-3.5" />
                                             Start new chat
                                         </button>
                                         <button
                                             onClick={handleClearHistory}
-                                            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-text hover:bg-background transition-colors"
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text hover:bg-background transition-colors"
                                         >
-                                            <Trash2 className="w-4 h-4" />
+                                            <Trash2 className="w-3.5 h-3.5" />
                                             Clear history
                                         </button>
                                         <button
                                             onClick={handleExportChat}
-                                            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-text hover:bg-background transition-colors"
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text hover:bg-background transition-colors"
                                         >
-                                            <Download className="w-4 h-4" />
+                                            <Download className="w-3.5 h-3.5" />
                                             Export chat
                                         </button>
                                     </div>
@@ -273,39 +277,50 @@ export function StudentDashboard() {
                         </CardHeader>
                         <CardContent className="flex flex-col flex-1 overflow-hidden">
                             {/* Chat Messages - Scrollable Area */}
-                            <div className="flex-1 space-y-3 overflow-y-auto mb-4 pr-2">
+                            <div className="flex-1 space-y-4 overflow-y-auto py-4">
+                                {messages.length === 0 && !activeAnswer && (
+                                    <div className="flex items-center justify-center h-full">
+                                        <p className="text-sm text-text-muted">Start a conversation by asking a question</p>
+                                    </div>
+                                )}
                                 {messages.map((msg) => (
-                                    <div key={msg.id} className="flex items-start gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                                            <User className="w-4 h-4 text-primary" />
+                                    <div key={msg.id} className="flex items-start gap-2.5">
+                                        <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                            <User className="w-3.5 h-3.5 text-primary" />
                                         </div>
-                                        <div className="flex-1 py-2 px-4 bg-background rounded-lg">
-                                            <p className="text-sm text-text">{msg.text}</p>
+                                        <div className="flex-1 py-2.5 px-3.5 bg-background rounded-lg">
+                                            <p className="text-xs text-text leading-relaxed">{msg.text}</p>
                                         </div>
                                     </div>
                                 ))}
 
                                 {/* AI Answer - Inside Chat Flow */}
                                 {activeAnswer && (
-                                    <div className="flex items-start gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-teal flex items-center justify-center flex-shrink-0">
-                                            <span className="text-white text-xs font-bold">AI</span>
+                                    <div className="flex items-start gap-2.5">
+                                        <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                                            <span className="text-white text-[10px] font-semibold">AI</span>
                                         </div>
-                                        <div className="flex-1 py-3 px-4 bg-teal/5 rounded-lg border border-teal/20">
-                                            <p className="text-sm text-text font-medium mb-2">
+                                        <div className="flex-1 py-3 px-3.5 bg-primary/5 rounded-lg border border-primary/10">
+                                            <p className="text-xs text-text leading-relaxed mb-2">
                                                 {activeAnswer.text}
                                             </p>
                                             {activeAnswer.source && (
-                                                <p className="text-xs text-primary">
-                                                    • Source: {activeAnswer.source}
+                                                <p className="text-[11px] text-text-muted mt-2 pt-2 border-t border-border">
+                                                    📄 {activeAnswer.source}
                                                 </p>
                                             )}
-                                            <div className="flex items-center gap-2 mt-3">
-                                                <button className="p-1.5 rounded hover:bg-success/10 text-text-muted hover:text-success transition-colors">
-                                                    <ThumbsUp className="w-4 h-4" />
+                                            <div className="flex items-center gap-1.5 mt-3">
+                                                <button 
+                                                    className="p-1.5 rounded-md hover:bg-success/10 text-text-muted hover:text-success transition-colors"
+                                                    aria-label="Mark answer as helpful"
+                                                >
+                                                    <ThumbsUp className="w-3.5 h-3.5" />
                                                 </button>
-                                                <button className="p-1.5 rounded hover:bg-error/10 text-text-muted hover:text-error transition-colors">
-                                                    <ThumbsDown className="w-4 h-4" />
+                                                <button 
+                                                    className="p-1.5 rounded-md hover:bg-error/10 text-text-muted hover:text-error transition-colors"
+                                                    aria-label="Mark answer as not helpful"
+                                                >
+                                                    <ThumbsDown className="w-3.5 h-3.5" />
                                                 </button>
                                             </div>
                                         </div>
@@ -315,16 +330,16 @@ export function StudentDashboard() {
                             </div>
 
                             {/* Input - Fixed at Bottom */}
-                            <form onSubmit={handleSubmit} className="flex items-center gap-3 pt-4 border-t border-border flex-shrink-0">
+                            <form onSubmit={handleSubmit} className="flex items-center gap-2.5 pt-4 border-t border-border flex-shrink-0">
                                 <input
                                     type="text"
                                     value={query}
                                     onChange={(e) => setQuery(e.target.value)}
                                     placeholder="Type your question..."
-                                    className="flex-1 h-10 px-4 rounded-lg border border-border bg-surface text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                    className="flex-1 h-9 px-3.5 text-sm rounded-lg border border-border bg-white text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 transition-all"
                                 />
-                                <Button type="submit" className="bg-primary hover:bg-primary-hover text-white">
-                                    <Send className="w-4 h-4 mr-2" />
+                                <Button type="submit" className="bg-primary hover:bg-primary-hover text-white h-9 px-4 text-sm">
+                                    <Send className="w-3.5 h-3.5 mr-1.5" />
                                     Send
                                 </Button>
                             </form>
