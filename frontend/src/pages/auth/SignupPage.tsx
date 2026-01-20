@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth, type UserRole } from '../../contexts/AuthContext'
 import { Button } from '../../components/ui/Button'
@@ -57,9 +57,11 @@ export function SignupPage() {
     const navigate = useNavigate()
 
     // Redirect if already logged in
-    if (user) {
-        navigate(user.role === 'admin' ? '/admin' : '/student', { replace: true })
-    }
+    useEffect(() => {
+        if (user) {
+            navigate(user.role === 'admin' ? '/admin' : '/student', { replace: true })
+        }
+    }, [user, navigate])
 
     // const handleRoleSelect = (selectedRole: UserRole) => {
     //     setRole(selectedRole)
