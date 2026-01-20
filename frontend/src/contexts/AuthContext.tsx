@@ -15,6 +15,10 @@ interface User {
     uid: string
     email: string | null
     role: UserRole
+    displayName?: string
+    phoneNumber?: string
+    studentId?: string
+    bio?: string
     program?: string
     department?: string
     semester?: number
@@ -25,11 +29,13 @@ interface AuthContextType {
     loading: boolean
     login: (email: string, password: string) => Promise<void>
     signup: (email: string, password: string, role: UserRole, profile?: Partial<User>) => Promise<void>
+    updateUser: (data: Partial<User>) => Promise<void>
     logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
     const context = useContext(AuthContext)
     if (!context) {
@@ -58,6 +64,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
                             uid: firebaseUser.uid,
                             email: firebaseUser.email,
                             role: userData.role || 'student',
+                            displayName: userData.displayName,
+                            phoneNumber: userData.phoneNumber,
+                            studentId: userData.studentId,
+                            bio: userData.bio,
                             program: userData.program,
                             department: userData.department,
                             semester: userData.semester,
@@ -92,18 +102,42 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     const signup = async (email: string, password: string, role: UserRole, profile?: Partial<User>) => {
-        const credential = await createUserWithEmailAndPassword(auth, email, password)
+        try {
+            const credential = await createUserWithEmailAndPassword(auth, email, password)
 
-        // Create user document in Firestore
-        await setDoc(doc(db, 'users', credential.user.uid), {
-            uid: credential.user.uid,
-            email: credential.user.email,
-            role,
-            program: profile?.program || '',
-            department: profile?.department || '',
-            semester: profile?.semester || 1,
-            createdAt: new Date().toISOString(),
-        })
+            try {
+                // Create user document in Firestore
+                await setDoc(doc(db, 'users', credential.user.uid), {
+                    uid: credential.user.uid,
+                    email: credential.user.email,
+                    role,
+                    program: profile?.program || '',
+                    department: profile?.department || '',
+                    semester: profile?.semester ? Number(profile.semester) : 1,
+                    createdAt: new Date().toISOString(),
+                })
+            } catch (firestoreError) {
+                // ROLLBACK: If Firestore write fails, delete the Auth user
+                // so the user is not left in a broken state (exists in Auth but no profile)
+                console.error("Firestore Profile Creation Failed. Rolling back Auth user.", firestoreError);
+                await credential.user.delete();
+                throw new Error("Failed to create user profile. Please try again.");
+            }
+        } catch (error) {
+            console.error("Signup Error:", error);
+            throw error;
+        }
+    }
+
+    const updateUser = async (data: Partial<User>) => {
+        if (!user) return
+        try {
+            await setDoc(doc(db, 'users', user.uid), data, { merge: true })
+            setUser(prev => prev ? { ...prev, ...data } : null)
+        } catch (error) {
+            console.error("Update Profile Error:", error)
+            throw error
+        }
     }
 
     const logout = async () => {
@@ -112,7 +146,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+        <AuthContext.Provider value={{ user, loading, login, signup, updateUser, logout }}>
             {children}
         </AuthContext.Provider>
     )

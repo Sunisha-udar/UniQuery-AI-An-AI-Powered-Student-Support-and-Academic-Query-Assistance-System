@@ -6,6 +6,8 @@ import { SignupPage } from './pages/auth/SignupPage'
 import { StudentDashboard } from './pages/student/StudentDashboard'
 import { AdminDashboard } from './pages/admin/AdminDashboard'
 import { AdminDocuments } from './pages/admin/AdminDocuments'
+import { SettingsPage } from './pages/student/SettingsPage'
+import { FAQPage } from './pages/student/FAQPage'
 import './index.css'
 
 function App() {
@@ -23,6 +25,22 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['student']}>
                 <StudentDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/student/settings"
+            element={
+              <ProtectedRoute allowedRoles={['student']}>
+                <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/student/faqs"
+            element={
+              <ProtectedRoute allowedRoles={['student']}>
+                <FAQPage />
               </ProtectedRoute>
             }
           />

@@ -38,7 +38,7 @@ export function DashboardLayout({ children, variant }: DashboardLayoutProps) {
                 </header>
 
                 {/* Page Content */}
-                <main className="p-6">
+                <main className="p-6 max-w-[1600px] mx-auto w-full">
                     {children}
                 </main>
             </div>

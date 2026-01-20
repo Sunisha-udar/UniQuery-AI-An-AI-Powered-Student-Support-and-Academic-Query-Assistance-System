@@ -27,7 +27,7 @@ export function LoginPage() {
         try {
             await login(email, password)
             // Navigation will happen automatically via auth state change
-        } catch (err) {
+        } catch {
             setError('Invalid email or password. Please try again.')
         } finally {
             setLoading(false)

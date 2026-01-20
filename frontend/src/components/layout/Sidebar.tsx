@@ -31,7 +31,7 @@ const ADMIN_NAV: NavItem[] = [
 
 const STUDENT_NAV: NavItem[] = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/student' },
-    { icon: FileText, label: 'Manage Documents', href: '/student/documents' },
+    // { icon: FileText, label: 'Manage Documents', href: '/student/documents' }, // Removed: Admin only
     { icon: HelpCircle, label: 'FAQs', href: '/student/faqs' },
     { icon: Settings, label: 'Settings', href: '/student/settings' },
 ]

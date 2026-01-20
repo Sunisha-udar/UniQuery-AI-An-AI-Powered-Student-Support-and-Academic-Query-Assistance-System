@@ -1,5 +1,6 @@
 import { useState, type FormEvent, useRef, useEffect } from 'react'
 import { DashboardLayout } from '../../components/layout/DashboardLayout'
+import { useAuth } from '../../contexts/AuthContext'
 import { Card, CardContent, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Select } from '../../components/ui/Select'
@@ -9,14 +10,21 @@ import {
     Play,
     ThumbsUp,
     ThumbsDown,
-    User
+    User,
+    MoreVertical,
+    Trash2,
+    MessageSquarePlus,
+    Download
 } from 'lucide-react'
 
 const COURSES = [
     { value: '', label: 'Select Course' },
-    { value: 'bca', label: 'BCA' },
     { value: 'btech', label: 'B.Tech' },
+    { value: 'mtech', label: 'M.Tech' },
+    { value: 'bca', label: 'BCA' },
     { value: 'mca', label: 'MCA' },
+    { value: 'bsc_cs', label: 'B.Sc (Cyber Security)' },
+    { value: 'bsc_ts', label: 'B.Sc (Tech)' },
 ]
 
 const SEMESTERS = [
@@ -43,41 +51,78 @@ interface Message {
     source?: string
 }
 
-const INITIAL_MESSAGES: Message[] = [
-    { id: '1', type: 'user', text: 'What is the attendance requirement for BCA students?' },
-    { id: '2', type: 'user', text: 'When is the internal assessment conducted?' },
-    { id: '3', type: 'user', text: 'How can I apply for revaluation?' },
-    { id: '4', type: 'user', text: 'What electives are available in the 5th semester?' },
-]
+const INITIAL_MESSAGES: Message[] = []
+
+
+const generateId = () => Math.random().toString(36).substr(2, 9)
 
 export function StudentDashboard() {
-    const [course, setCourse] = useState('')
-    const [semester, setSemester] = useState('')
+    const { user } = useAuth()
+    const [course, setCourse] = useState(user?.program || '')
+    const [semester, setSemester] = useState(user?.semester?.toString() || '')
     const [subject, setSubject] = useState('')
     const [query, setQuery] = useState('')
     const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES)
-    const [activeAnswer, setActiveAnswer] = useState<Message | null>({
-        id: 'answer',
-        type: 'assistant',
-        text: 'BCA students must maintain a minimum of 75% attendance in each semester to be eligible for exams. Leaves of absence will only be considered if supported by valid medical or other official documents.',
-        source: 'Attendance Rules.pdf, Page 3'
-    })
+    const [activeAnswer, setActiveAnswer] = useState<Message | null>(null)
+    const [showMenu, setShowMenu] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
+    const menuRef = useRef<HTMLDivElement>(null)
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
 
     useEffect(() => {
+        if (user?.program) setCourse(user.program)
+        if (user?.semester) setSemester(user.semester.toString())
+    }, [user])
+
+    useEffect(() => {
         scrollToBottom()
     }, [messages])
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setShowMenu(false)
+            }
+        }
+
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [])
+
+    const handleClearHistory = () => {
+        setMessages([])
+        setActiveAnswer(null)
+        setShowMenu(false)
+    }
+
+    const handleStartNewChat = () => {
+        setMessages([])
+        setActiveAnswer(null)
+        setQuery('')
+        setShowMenu(false)
+    }
+
+    const handleExportChat = () => {
+        const chatContent = messages.map(msg => `${msg.type === 'user' ? 'You' : 'AI'}: ${msg.text}`).join('\n\n')
+        const blob = new Blob([chatContent], { type: 'text/plain' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `chat-history-${new Date().toISOString().split('T')[0]}.txt`
+        a.click()
+        URL.revokeObjectURL(url)
+        setShowMenu(false)
+    }
 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault()
         if (!query.trim()) return
 
         const newMessage: Message = {
-            id: Date.now().toString(),
+            id: generateId(),
             type: 'user',
             text: query,
         }
@@ -96,7 +141,7 @@ export function StudentDashboard() {
 
     const handlePopularQuestion = (question: string) => {
         const newMessage: Message = {
-            id: Date.now().toString(),
+            id: generateId(),
             type: 'user',
             text: question,
         }
@@ -105,14 +150,14 @@ export function StudentDashboard() {
         // Mock answer for popular question
         if (question.includes('attendance')) {
             setActiveAnswer({
-                id: 'answer-' + Date.now(),
+                id: 'answer-' + generateId(),
                 type: 'assistant',
                 text: 'BCA students must maintain a minimum of 75% attendance in each semester to be eligible for exams. Leaves of absence will only be considered if supported by valid medical or other official documents.',
                 source: 'Attendance Rules.pdf, Page 3'
             })
         } else {
             setActiveAnswer({
-                id: 'answer-' + Date.now(),
+                id: 'answer-' + generateId(),
                 type: 'assistant',
                 text: 'I found relevant information in the academic documents. Please refer to the source for detailed information.',
                 source: 'Academic Handbook 2024'
@@ -163,9 +208,9 @@ export function StudentDashboard() {
                 </Card>
 
                 {/* Popular Questions + Answer Panel */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6" style={{ height: 'calc(100vh - 280px)' }}>
                     {/* Popular Questions */}
-                    <Card>
+                    <Card className="h-fit">
                         <CardHeader>
                             <h2 className="text-base font-semibold text-text">Popular Questions</h2>
                         </CardHeader>
@@ -188,18 +233,47 @@ export function StudentDashboard() {
                     </Card>
 
                     {/* Answer Panel */}
-                    <Card className="lg:col-span-2">
-                        <CardHeader className="flex flex-row items-center justify-between">
+                    <Card className="lg:col-span-3 flex flex-col h-full">
+                        <CardHeader className="flex flex-row items-center justify-between flex-shrink-0">
                             <h2 className="text-base font-semibold text-text">Answer</h2>
-                            <div className="flex items-center gap-1">
-                                <div className="w-1.5 h-1.5 rounded-full bg-text-muted" />
-                                <div className="w-1.5 h-1.5 rounded-full bg-text-muted" />
-                                <div className="w-1.5 h-1.5 rounded-full bg-text-muted" />
+                            <div className="relative" ref={menuRef}>
+                                <button
+                                    onClick={() => setShowMenu(!showMenu)}
+                                    className="p-1 rounded hover:bg-border/50 transition-colors"
+                                >
+                                    <MoreVertical className="w-5 h-5 text-text-muted" />
+                                </button>
+
+                                {showMenu && (
+                                    <div className="absolute right-0 top-8 w-48 bg-surface border border-border rounded-lg shadow-lg py-1 z-10">
+                                        <button
+                                            onClick={handleStartNewChat}
+                                            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-text hover:bg-background transition-colors"
+                                        >
+                                            <MessageSquarePlus className="w-4 h-4" />
+                                            Start new chat
+                                        </button>
+                                        <button
+                                            onClick={handleClearHistory}
+                                            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-text hover:bg-background transition-colors"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                            Clear history
+                                        </button>
+                                        <button
+                                            onClick={handleExportChat}
+                                            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-text hover:bg-background transition-colors"
+                                        >
+                                            <Download className="w-4 h-4" />
+                                            Export chat
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            {/* Chat Messages */}
-                            <div className="space-y-3 max-h-64 overflow-y-auto">
+                        <CardContent className="flex flex-col flex-1 overflow-hidden">
+                            {/* Chat Messages - Scrollable Area */}
+                            <div className="flex-1 space-y-3 overflow-y-auto mb-4 pr-2">
                                 {messages.map((msg) => (
                                     <div key={msg.id} className="flex items-start gap-3">
                                         <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
@@ -210,22 +284,15 @@ export function StudentDashboard() {
                                         </div>
                                     </div>
                                 ))}
-                                <div ref={messagesEndRef} />
-                            </div>
 
-                            {/* AI Answer */}
-                            {activeAnswer && (
-                                <div className="border-t border-border pt-4">
+                                {/* AI Answer - Inside Chat Flow */}
+                                {activeAnswer && (
                                     <div className="flex items-start gap-3">
                                         <div className="w-8 h-8 rounded-full bg-teal flex items-center justify-center flex-shrink-0">
                                             <span className="text-white text-xs font-bold">AI</span>
                                         </div>
-                                        <div className="flex-1">
-                                            <h3 className="font-medium text-text mb-2">Answer</h3>
-                                            <p className="text-sm text-text mb-2">
-                                                <strong>What is the attendance requirement for BCA students?</strong>
-                                            </p>
-                                            <p className="text-sm text-text-muted mb-3">
+                                        <div className="flex-1 py-3 px-4 bg-teal/5 rounded-lg border border-teal/20">
+                                            <p className="text-sm text-text font-medium mb-2">
                                                 {activeAnswer.text}
                                             </p>
                                             {activeAnswer.source && (
@@ -233,21 +300,22 @@ export function StudentDashboard() {
                                                     • Source: {activeAnswer.source}
                                                 </p>
                                             )}
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <button className="p-1.5 rounded hover:bg-success/10 text-text-muted hover:text-success transition-colors cursor-pointer">
-                                                <ThumbsUp className="w-4 h-4" />
-                                            </button>
-                                            <button className="p-1.5 rounded hover:bg-error/10 text-text-muted hover:text-error transition-colors cursor-pointer">
-                                                <ThumbsDown className="w-4 h-4" />
-                                            </button>
+                                            <div className="flex items-center gap-2 mt-3">
+                                                <button className="p-1.5 rounded hover:bg-success/10 text-text-muted hover:text-success transition-colors">
+                                                    <ThumbsUp className="w-4 h-4" />
+                                                </button>
+                                                <button className="p-1.5 rounded hover:bg-error/10 text-text-muted hover:text-error transition-colors">
+                                                    <ThumbsDown className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                                <div ref={messagesEndRef} />
+                            </div>
 
-                            {/* Input */}
-                            <form onSubmit={handleSubmit} className="flex items-center gap-3 pt-2 border-t border-border">
+                            {/* Input - Fixed at Bottom */}
+                            <form onSubmit={handleSubmit} className="flex items-center gap-3 pt-4 border-t border-border flex-shrink-0">
                                 <input
                                     type="text"
                                     value={query}
