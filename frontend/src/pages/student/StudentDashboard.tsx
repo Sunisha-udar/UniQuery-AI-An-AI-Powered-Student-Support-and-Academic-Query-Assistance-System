@@ -7,13 +7,11 @@ import { PlaceholdersAndVanishInput } from '../../components/ui/placeholders-and
 import {
     ThumbsUp,
     ThumbsDown,
-    User,
     MoreVertical,
     Trash2,
     MessageSquarePlus,
     Download,
     AlertCircle,
-    PanelLeftClose,
     PanelLeft
 } from 'lucide-react'
 
@@ -294,10 +292,9 @@ export function StudentDashboard() {
         <DashboardLayout variant="student">
             <div className="flex h-full relative">
                 {/* Collapsible Chat History Panel */}
-                <div 
-                    className={`border-r border-gray-200 bg-white flex-shrink-0 z-20 shadow-lg transition-all duration-300 ease-in-out overflow-hidden ${
-                        isChatHistoryOpen ? 'w-72' : 'w-0'
-                    }`}
+                <div
+                    className={`border-r border-gray-200 bg-white flex-shrink-0 z-20 shadow-lg transition-all duration-300 ease-in-out overflow-hidden ${isChatHistoryOpen ? 'w-72' : 'w-0'
+                        }`}
                 >
                     <div className="w-72 h-full flex flex-col">
                         {/* New Chat Button Area */}
@@ -351,192 +348,188 @@ export function StudentDashboard() {
                 </div>
 
                 {/* Main Content Area */}
-                <div className="flex flex-col flex-1 h-full bg-white">
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200/50 bg-white/80 backdrop-blur-sm">
-                        <div className="flex items-center gap-3">
+                <div className="flex flex-col flex-1 h-full bg-gray-50/50">
+                    {/* Header - Minimal Glass Effect */}
+                    <div className="flex items-center justify-between px-4 py-3 bg-white/70 backdrop-blur-md border-b border-gray-200/30 sticky top-0 z-10">
+                        <div className="flex items-center gap-2">
                             <button
                                 onClick={() => setIsChatHistoryOpen(!isChatHistoryOpen)}
-                                className="p-2 rounded-xl hover:bg-gray-100 transition-all hover:scale-105"
+                                className="p-2 rounded-lg hover:bg-gray-100/80 transition-colors"
                             >
-                                <PanelLeft className="w-5 h-5 text-gray-600" />
+                                <PanelLeft className="w-5 h-5 text-gray-500" />
                             </button>
-                            <h2 className="text-xl font-semibold bg-gradient-to-r from-primary to-teal bg-clip-text text-transparent">
+                            <h2 className="text-lg font-medium text-gray-800">
                                 UniQuery AI
                             </h2>
                         </div>
-                        <div className="relative" ref={menuRef}>
+                        <div className="flex items-center gap-2">
                             <button
-                                onClick={() => setShowMenu(!showMenu)}
-                                className="p-2 rounded-xl hover:bg-gray-100/80 transition-all hover:scale-105"
-                                aria-label="Open chat menu"
+                                onClick={handleStartNewChat}
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100/80 transition-colors text-gray-500 hover:text-gray-900"
                             >
-                                <MoreVertical className="w-5 h-5 text-gray-600" />
+                                <MessageSquarePlus className="w-4.5 h-4.5" />
+                                <span className="text-sm font-medium">New chat</span>
                             </button>
+                            <div className="relative" ref={menuRef}>
+                                <button
+                                    onClick={() => setShowMenu(!showMenu)}
+                                    className="p-2 rounded-lg hover:bg-gray-100/80 transition-colors"
+                                    aria-label="Open chat menu"
+                                >
+                                    <MoreVertical className="w-5 h-5 text-gray-500" />
+                                </button>
 
-                            {showMenu && (
-                                <div className="absolute right-0 top-12 w-56 bg-white border border-gray-200 rounded-2xl shadow-xl py-2 z-10 animate-fadeIn">
-                                    <button
-                                        onClick={handleStartNewChat}
-                                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                                    >
-                                        <MessageSquarePlus className="w-4 h-4 text-primary" />
-                                        Start new chat
-                                    </button>
-                                    <button
-                                        onClick={handleClearHistory}
-                                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                                    >
-                                        <Trash2 className="w-4 h-4 text-error" />
-                                        Clear history
-                                    </button>
-                                    <button
-                                        onClick={handleExportChat}
-                                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                                    >
-                                        <Download className="w-4 h-4 text-teal" />
-                                        Export chat
-                                    </button>
-                                </div>
-                            )}
+                                {showMenu && (
+                                    <div className="absolute right-0 top-10 w-48 bg-white border border-gray-200/80 rounded-xl shadow-lg py-1.5 z-10 animate-fadeIn">
+                                        <button
+                                            onClick={handleClearHistory}
+                                            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                        >
+                                            <Trash2 className="w-4 h-4 text-gray-500" />
+                                            Clear history
+                                        </button>
+                                        <button
+                                            onClick={handleExportChat}
+                                            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                        >
+                                            <Download className="w-4 h-4 text-gray-500" />
+                                            Export
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
-                    {/* Messages Area */}
-                    <div className="flex-1 overflow-y-auto">
+                    {/* Messages Area - Centered */}
+                    <div className="flex-1 overflow-y-auto pb-32">
                         {isLoadingHistory && (
                             <div className="flex items-center justify-center h-full">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
-                                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                                 </div>
                             </div>
                         )}
                         {!isLoadingHistory && messages.length === 0 && !activeAnswer && (
                             <div className="flex items-center justify-center h-full">
-                                <div className="text-center space-y-4 px-4 max-w-2xl">
-                                    <h1 className="text-4xl font-semibold text-gray-800 tracking-tight">Ask UniQuery AI</h1>
-                                    <p className="text-gray-500 text-lg">Ask any question about your documents, schedule, or courses.</p>
+                                <div className="text-center space-y-3 px-4 max-w-xl">
+                                    <h1 className="text-3xl font-semibold text-gray-800">Ask UniQuery AI</h1>
+                                    <p className="text-gray-500 text-base">Ask any question about your documents, schedule, or courses.</p>
                                 </div>
                             </div>
                         )}
 
                         {messages.length > 0 && (<>
-                            <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+                            <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
                                 {messages.map((msg) => (
-                                    <div key={msg.id} className={`flex items-start gap-4 animate-fadeIn ${msg.type === 'user' ? 'flex-row-reverse' : ''}`}>
-                                        <div className={`w-10 h-10 rounded-2xl ${msg.type === 'assistant' ? 'bg-gradient-to-br from-primary to-teal' : 'bg-gradient-to-br from-blue-500 to-blue-600'} flex items-center justify-center flex-shrink-0 shadow-lg`}>
-                                            {msg.type === 'assistant' ? (
-                                                <span className="text-white text-sm font-bold">AI</span>
-                                            ) : (
-                                                <User className="w-5 h-5 text-white" />
-                                            )}
-                                        </div>
-                                        <div className={`${msg.type === 'user' ? 'max-w-[80%]' : 'flex-1'} ${msg.type === 'assistant' ? 'bg-white border border-gray-200 shadow-sm' : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md shadow-blue-500/30'} py-4 px-5 rounded-3xl`}>
-                                            <p className={`text-[15px] leading-relaxed ${msg.type === 'assistant' ? 'text-gray-800' : 'text-white'}`}>{msg.text}</p>
-                                            {msg.citations && msg.citations.length > 0 && (
-                                                <div className="mt-4 pt-4 border-t border-gray-200">
-                                                    <p className="text-xs font-semibold text-gray-600 mb-3 flex items-center gap-2">
-                                                        <span className="text-base">📚</span> Sources
-                                                    </p>
-                                                    <div className="space-y-2">
+                                    <div key={msg.id} className={`flex animate-fadeIn ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`${msg.type === 'user' ? 'max-w-[85%]' : 'max-w-full'}`}>
+                                            {/* Message Bubble */}
+                                            <div className={`${msg.type === 'user'
+                                                ? 'bg-primary text-white rounded-2xl rounded-tr-sm px-4 py-3'
+                                                : 'text-gray-800'}`}>
+                                                <p className="text-[15px] leading-relaxed">{msg.text}</p>
+                                            </div>
+
+                                            {/* Citations - Horizontal Scrollable Chips */}
+                                            {msg.type === 'assistant' && msg.citations && msg.citations.length > 0 && (
+                                                <div className="mt-3 overflow-x-auto scrollbar-hide">
+                                                    <div className="flex gap-2 pb-1">
                                                         {msg.citations.map((citation, idx) => (
-                                                            <div key={idx} className="text-xs bg-gray-50 rounded-xl p-3 border border-gray-200">
-                                                                <span className="font-semibold text-gray-800">{citation.title}</span>
-                                                                <span className="text-gray-500 ml-2">• Page {citation.page}</span>
-                                                                <span className="text-primary ml-2">• {(citation.score * 100).toFixed(0)}% match</span>
+                                                            <div key={idx} className="flex-shrink-0 text-xs bg-white border border-gray-200 rounded-full px-3 py-1.5 text-gray-600 hover:border-gray-300 transition-colors cursor-pointer">
+                                                                <span className="font-medium text-gray-800">{citation.title}</span>
+                                                                <span className="text-gray-400 mx-1.5">·</span>
+                                                                <span>p.{citation.page}</span>
                                                             </div>
                                                         ))}
                                                     </div>
                                                 </div>
                                             )}
-                                            {msg.confidence !== undefined && (
-                                                <div className="mt-4 flex items-center gap-3">
-                                                    <span className="text-xs font-medium text-gray-600">Confidence</span>
-                                                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden max-w-[120px]">
+
+                                            {/* Confidence - Minimal */}
+                                            {msg.type === 'assistant' && msg.confidence !== undefined && (
+                                                <div className="mt-2 flex items-center gap-2">
+                                                    <div className="w-16 h-1 bg-gray-200 rounded-full overflow-hidden">
                                                         <div
-                                                            className="h-full bg-gradient-to-r from-primary to-teal rounded-full transition-all duration-500"
+                                                            className="h-full bg-gray-400 rounded-full"
                                                             style={{ width: `${msg.confidence * 100}%` }}
                                                         ></div>
                                                     </div>
-                                                    <span className="text-xs font-bold text-primary">{(msg.confidence * 100).toFixed(0)}%</span>
+                                                    <span className="text-xs text-gray-400">{(msg.confidence * 100).toFixed(0)}%</span>
                                                 </div>
                                             )}
                                         </div>
                                     </div>
                                 ))}
 
-                                {/* Typing Indicator */}
+                                {/* Typing Indicator - Minimal 3-dot */}
                                 {isTyping && (
-                                    <div className="flex items-start gap-4 animate-fadeIn">
-                                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-teal flex items-center justify-center flex-shrink-0 shadow-lg">
-                                            <span className="text-white text-sm font-bold">AI</span>
-                                        </div>
-                                        <div className="flex-1 py-5 px-5 bg-white rounded-3xl border border-gray-200 shadow-sm">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-2.5 h-2.5 bg-gradient-to-r from-primary to-teal rounded-full animate-bounce"></div>
-                                                <div className="w-2.5 h-2.5 bg-gradient-to-r from-primary to-teal rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                                                <div className="w-2.5 h-2.5 bg-gradient-to-r from-primary to-teal rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                                            </div>
+                                    <div className="flex justify-start animate-fadeIn">
+                                        <div className="flex items-center gap-1 py-2">
+                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                                         </div>
                                     </div>
                                 )}
 
-                                {/* AI Answer - Inside Chat Flow */}
+                                {/* AI Answer - Streaming */}
                                 {activeAnswer && !isTyping && (
-                                    <div className="flex items-start gap-4 animate-fadeIn">
-                                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-teal flex items-center justify-center flex-shrink-0 shadow-lg">
-                                            <span className="text-white text-sm font-bold">AI</span>
-                                        </div>
-                                        <div className="flex-1 py-4 px-5 bg-white rounded-3xl border border-gray-200 shadow-sm">
-                                            <p className="text-[15px] text-gray-800 leading-relaxed">
-                                                {displayedText}
-                                                {displayedText.length < activeAnswer.text.length && (
-                                                    <span className="inline-block w-1.5 h-5 bg-primary ml-1 animate-pulse rounded"></span>
-                                                )}
-                                            </p>
+                                    <div className="flex justify-start animate-fadeIn">
+                                        <div className="max-w-full">
+                                            <div className="text-gray-800">
+                                                <p className="text-[15px] leading-relaxed">
+                                                    {displayedText}
+                                                    {displayedText.length < activeAnswer.text.length && (
+                                                        <span className="inline-block w-0.5 h-4 bg-gray-400 ml-0.5 animate-pulse"></span>
+                                                    )}
+                                                </p>
+                                            </div>
+
+                                            {/* Citations - After typing complete */}
                                             {activeAnswer.citations && activeAnswer.citations.length > 0 && displayedText.length === activeAnswer.text.length && (
-                                                <div className="mt-4 pt-4 border-t border-gray-200 animate-fadeIn">
-                                                    <p className="text-xs font-semibold text-gray-600 mb-3 flex items-center gap-2">
-                                                        <span className="text-base">📚</span> Sources
-                                                    </p>
-                                                    <div className="space-y-2">
+                                                <div className="mt-3 overflow-x-auto scrollbar-hide animate-fadeIn">
+                                                    <div className="flex gap-2 pb-1">
                                                         {activeAnswer.citations.map((citation, idx) => (
-                                                            <div key={idx} className="text-xs bg-gray-50 rounded-xl p-3 border border-gray-200">
-                                                                <span className="font-semibold text-gray-800">{citation.title}</span>
-                                                                <span className="text-gray-500 ml-2">• Page {citation.page}</span>
-                                                                <span className="text-primary ml-2">• {(citation.score * 100).toFixed(0)}% match</span>
+                                                            <div key={idx} className="flex-shrink-0 text-xs bg-white border border-gray-200 rounded-full px-3 py-1.5 text-gray-600 hover:border-gray-300 transition-colors cursor-pointer">
+                                                                <span className="font-medium text-gray-800">{citation.title}</span>
+                                                                <span className="text-gray-400 mx-1.5">·</span>
+                                                                <span>p.{citation.page}</span>
                                                             </div>
                                                         ))}
                                                     </div>
                                                 </div>
                                             )}
+
+                                            {/* Confidence */}
                                             {activeAnswer.confidence !== undefined && displayedText.length === activeAnswer.text.length && (
-                                                <div className="mt-4 flex items-center gap-3 animate-fadeIn">
-                                                    <span className="text-xs font-medium text-gray-600">Confidence</span>
-                                                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden max-w-[120px]">
+                                                <div className="mt-2 flex items-center gap-2 animate-fadeIn">
+                                                    <div className="w-16 h-1 bg-gray-200 rounded-full overflow-hidden">
                                                         <div
-                                                            className="h-full bg-gradient-to-r from-primary to-teal rounded-full transition-all duration-500"
+                                                            className="h-full bg-gray-400 rounded-full"
                                                             style={{ width: `${activeAnswer.confidence * 100}%` }}
                                                         ></div>
                                                     </div>
-                                                    <span className="text-xs font-bold text-primary">{(activeAnswer.confidence * 100).toFixed(0)}%</span>
+                                                    <span className="text-xs text-gray-400">{(activeAnswer.confidence * 100).toFixed(0)}%</span>
                                                 </div>
                                             )}
+
+                                            {/* Feedback - After typing complete */}
                                             {displayedText.length === activeAnswer.text.length && (
-                                                <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100 animate-fadeIn">
+                                                <div className="flex items-center gap-1 mt-3 animate-fadeIn">
                                                     <button
-                                                        className="p-2 rounded-xl hover:bg-success/10 text-gray-400 hover:text-success transition-all hover:scale-110"
+                                                        className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
                                                         aria-label="Mark answer as helpful"
                                                     >
-                                                        <ThumbsUp className="w-4 h-4" />
+                                                        <ThumbsUp className="w-3.5 h-3.5" />
                                                     </button>
                                                     <button
-                                                        className="p-2 rounded-xl hover:bg-error/10 text-gray-400 hover:text-error transition-all hover:scale-110"
+                                                        className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
                                                         aria-label="Mark answer as not helpful"
                                                     >
-                                                        <ThumbsDown className="w-4 h-4" />
+                                                        <ThumbsDown className="w-3.5 h-3.5" />
                                                     </button>
                                                 </div>
                                             )}
@@ -546,12 +539,10 @@ export function StudentDashboard() {
 
                                 {/* Error Message */}
                                 {error && !isTyping && (
-                                    <div className="flex items-start gap-4 animate-fadeIn">
-                                        <div className="w-10 h-10 rounded-2xl bg-red-100 flex items-center justify-center flex-shrink-0 shadow-sm">
-                                            <AlertCircle className="w-5 h-5 text-red-600" />
-                                        </div>
-                                        <div className="flex-1 py-4 px-5 bg-red-50 rounded-3xl border border-red-200 shadow-sm">
-                                            <p className="text-[15px] text-red-700 font-medium">{error}</p>
+                                    <div className="flex justify-start animate-fadeIn">
+                                        <div className="flex items-center gap-2 text-red-600 bg-red-50 rounded-lg px-3 py-2">
+                                            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                            <p className="text-sm">{error}</p>
                                         </div>
                                     </div>
                                 )}
@@ -561,13 +552,15 @@ export function StudentDashboard() {
                         )}
                     </div>
 
-                    {/* Input - Fixed at Bottom */}
-                    <div className="border-t border-gray-200/50 bg-white px-6 py-6">
-                        <PlaceholdersAndVanishInput
-                            placeholders={EXAMPLE_QUESTIONS}
-                            onChange={(e) => setQuery(e.target.value)}
-                            onSubmit={handleSubmit}
-                        />
+                    {/* Input - Floating at Bottom with Blur */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-gray-50 via-gray-50/95 to-transparent pt-8 pb-4 px-4">
+                        <div className="max-w-3xl mx-auto">
+                            <PlaceholdersAndVanishInput
+                                placeholders={EXAMPLE_QUESTIONS}
+                                onChange={(e) => setQuery(e.target.value)}
+                                onSubmit={handleSubmit}
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
