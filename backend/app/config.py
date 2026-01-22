@@ -28,9 +28,9 @@ class Settings(BaseSettings):
     qdrant_api_key: str
     qdrant_collection_name: str = "uniquery"
     
-    # Embedding Model
-    embedding_model: str = "BAAI/bge-small-en-v1.5"
-    embedding_dimension: int = 384  # bge-small-en dimension
+    # Voyage AI Embedding Configuration
+    voyage_api_key: str = ""
+    embedding_dimension: int = 512  # voyage-3-lite dimension
     
     # Firebase Configuration (for admin SDK)
     firebase_project_id: str = ""

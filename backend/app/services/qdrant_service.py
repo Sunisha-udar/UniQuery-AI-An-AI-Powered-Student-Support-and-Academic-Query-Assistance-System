@@ -14,7 +14,7 @@ from qdrant_client.models import (
     MatchValue,
     SearchRequest
 )
-from sentence_transformers import SentenceTransformer
+from app.services.voyage_embedding_service import get_voyage_embedding_service
 import logging
 
 from app.config import get_settings
@@ -34,7 +34,7 @@ class QdrantService:
             timeout=120  # Increased for large document uploads
         )
         self.collection_name = settings.qdrant_collection_name
-        self.embedding_model = SentenceTransformer(settings.embedding_model)
+        self.embedding_service = get_voyage_embedding_service()
         self.embedding_dimension = settings.embedding_dimension
         
         logger.info(f"Qdrant service initialized with collection: {self.collection_name}")
@@ -145,38 +145,32 @@ class QdrantService:
     
     def embed_text(self, text: str) -> List[float]:
         """
-        Convert text to embedding vector using bge-small-en model.
+        Convert text to embedding vector using Voyage AI.
         
         Args:
             text: Text to embed
             
         Returns:
-            List of floats representing the embedding vector
+            List of floats representing the embedding vector (1024 dimensions)
         """
         try:
-            embedding = self.embedding_model.encode(text, normalize_embeddings=True)
-            return embedding.tolist()
+            return self.embedding_service.embed_query(text)
         except Exception as e:
             logger.error(f"Error embedding text: {e}")
             raise
     
     def embed_batch(self, texts: List[str]) -> List[List[float]]:
         """
-        Embed multiple texts in batch for efficiency.
+        Embed multiple texts in batch using Voyage AI.
         
         Args:
             texts: List of texts to embed
             
         Returns:
-            List of embedding vectors
+            List of embedding vectors (1024 dimensions each)
         """
         try:
-            embeddings = self.embedding_model.encode(
-                texts,
-                normalize_embeddings=True,
-                show_progress_bar=True
-            )
-            return embeddings.tolist()
+            return self.embedding_service.embed_batch(texts, show_progress=True)
         except Exception as e:
             logger.error(f"Error batch embedding: {e}")
             raise

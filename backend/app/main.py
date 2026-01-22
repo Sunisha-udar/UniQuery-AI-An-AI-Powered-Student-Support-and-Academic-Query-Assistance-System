@@ -20,7 +20,6 @@ logging.basicConfig(
 # Silence noisy loggers
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
-logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 
