@@ -688,6 +688,6 @@ export function StudentDashboard() {
     )
 }
 function generateChatTitle(text: string) {
-    throw new Error('Function not implemented.')
+    return text.slice(0, 30) + (text.length > 30 ? '...' : '')
 }
 
