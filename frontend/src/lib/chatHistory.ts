@@ -55,7 +55,7 @@ export async function createChatSession(userId: string, firstMessage?: string): 
         if (!userId) {
             throw new Error('UserId is required to create chat session')
         }
-        
+
         const sessionsRef = collection(db, 'chatSessions')
         const sessionData = {
             userId,
@@ -64,7 +64,7 @@ export async function createChatSession(userId: string, firstMessage?: string): 
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp()
         }
-        
+
         const docRef = await addDoc(sessionsRef, sessionData)
         console.log('[ChatHistory] Session created with ID:', docRef.id)
         return docRef.id
@@ -89,7 +89,7 @@ export async function addMessageToSession(
         if (!sessionId) {
             throw new Error('SessionId is required to add message')
         }
-        
+
         const sessionRef = doc(db, 'chatSessions', sessionId)
         const message: ChatMessage = {
             id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
@@ -98,17 +98,17 @@ export async function addMessageToSession(
             citations: citations || [],
             timestamp: new Date()
         }
-        
+
         // Only add confidence if it's defined (Firebase arrayUnion doesn't accept undefined values)
         if (confidence !== undefined) {
             message.confidence = confidence
         }
-        
+
         await updateDoc(sessionRef, {
             messages: arrayUnion(message),
             updatedAt: serverTimestamp()
         })
-        
+
         console.log('[ChatHistory] Message added to session')
     } catch (error: any) {
         console.error('[ChatHistory] Error adding message:', error)
@@ -125,7 +125,7 @@ export async function loadChatSessions(userId: string): Promise<ChatSession[]> {
         if (!userId) {
             throw new Error('UserId is required to load chat sessions')
         }
-        
+
         const sessionsRef = collection(db, 'chatSessions')
         const q = query(
             sessionsRef,
@@ -133,12 +133,12 @@ export async function loadChatSessions(userId: string): Promise<ChatSession[]> {
             orderBy('updatedAt', 'desc'),
             limit(50)
         )
-        
+
         const querySnapshot = await getDocs(q)
         const sessions: ChatSession[] = []
-        
+
         console.log('[ChatHistory] Found', querySnapshot.size, 'sessions')
-        
+
         querySnapshot.forEach((doc) => {
             const data = doc.data()
             sessions.push({
@@ -150,7 +150,7 @@ export async function loadChatSessions(userId: string): Promise<ChatSession[]> {
                 updatedAt: data.updatedAt
             })
         })
-        
+
         console.log('[ChatHistory] Loaded', sessions.length, 'sessions')
         return sessions
     } catch (error: any) {
@@ -167,12 +167,12 @@ export async function loadChatSession(sessionId: string): Promise<ChatSession | 
     try {
         const sessionRef = doc(db, 'chatSessions', sessionId)
         const sessionDoc = await getDoc(sessionRef)
-        
+
         if (!sessionDoc.exists()) {
             console.log('[ChatHistory] Session not found')
             return null
         }
-        
+
         const data = sessionDoc.data()
         return {
             id: sessionDoc.id,
@@ -184,6 +184,29 @@ export async function loadChatSession(sessionId: string): Promise<ChatSession | 
         }
     } catch (error: any) {
         console.error('[ChatHistory] Error loading chat session:', error)
+        throw error
+    }
+}
+
+/**
+ * Update the title of a chat session
+ */
+export async function updateSessionTitle(sessionId: string, title: string): Promise<void> {
+    console.log('[ChatHistory] Updating session title:', sessionId, title)
+    try {
+        if (!sessionId) {
+            throw new Error('SessionId is required to update title')
+        }
+
+        const sessionRef = doc(db, 'chatSessions', sessionId)
+        await updateDoc(sessionRef, {
+            title,
+            updatedAt: serverTimestamp()
+        })
+
+        console.log('[ChatHistory] Session title updated')
+    } catch (error: any) {
+        console.error('[ChatHistory] Error updating session title:', error)
         throw error
     }
 }
@@ -211,10 +234,10 @@ export async function clearAllChatSessions(userId: string): Promise<void> {
     try {
         const sessionsRef = collection(db, 'chatSessions')
         const q = query(sessionsRef, where('userId', '==', userId))
-        
+
         const querySnapshot = await getDocs(q)
         const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref))
-        
+
         await Promise.all(deletePromises)
         console.log('[ChatHistory] All sessions cleared')
     } catch (error: any) {

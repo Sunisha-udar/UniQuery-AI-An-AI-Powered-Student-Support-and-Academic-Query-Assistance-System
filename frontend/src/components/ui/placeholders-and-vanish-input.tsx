@@ -181,10 +181,10 @@ export function PlaceholdersAndVanishInput({
       className={cn(
         "w-full relative max-w-2xl mx-auto rounded-full overflow-hidden transition-all duration-300",
         "h-14 sm:h-16", // Increased height
-        "bg-white shadow-[0_8px_30px_rgb(0,0,0,0.06)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)]", // Better shadow
+        "bg-surface shadow-[0_8px_30px_rgb(0,0,0,0.06)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)]", // Better shadow
         "border-2", // Thicker border
-        isFocused ? "border-primary/50 ring-4 ring-primary/10" : "border-gray-100", // Focus state
-        value && "bg-gray-50"
+        isFocused ? "border-primary/50 ring-4 ring-primary/10" : "border-border", // Focus state
+        value && "bg-background"
       )}
       onSubmit={handleSubmit}
     >
@@ -209,7 +209,7 @@ export function PlaceholdersAndVanishInput({
         value={value}
         type="text"
         className={cn(
-          "w-full relative text-base sm:text-lg z-50 border-none bg-transparent text-gray-800 h-full rounded-full focus:outline-none focus:ring-0 px-4 text-center font-medium",
+          "w-full relative text-base sm:text-lg z-50 border-none bg-transparent text-text h-full rounded-full focus:outline-none focus:ring-0 px-4 text-center font-medium",
           animating && "text-transparent"
         )}
       />
@@ -222,7 +222,7 @@ export function PlaceholdersAndVanishInput({
             "h-10 w-10 sm:h-12 sm:w-12 rounded-full transition-all duration-300 flex items-center justify-center shadow-md",
             value
               ? "bg-gradient-to-r from-primary to-teal text-white hover:opacity-90 hover:scale-105 transform cursor-pointer"
-              : "bg-gray-100 text-gray-400 cursor-not-allowed"
+              : "bg-background text-text-muted cursor-not-allowed"
           )}
         >
           <motion.svg
@@ -279,7 +279,7 @@ export function PlaceholdersAndVanishInput({
                 duration: 0.3,
                 ease: "linear",
               }}
-              className="text-base sm:text-lg font-medium text-gray-400 text-center w-full truncate px-4"
+              className="text-base sm:text-lg font-medium text-text-muted text-center w-full truncate px-4"
             >
               {placeholders[currentPlaceholder]}
             </motion.p>

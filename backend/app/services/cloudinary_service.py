@@ -75,7 +75,7 @@ class CloudinaryService:
     
     def get_pdf_url(self, doc_id: str) -> Optional[str]:
         """
-        Get the download URL for a PDF.
+        Get the download URL for a PDF with authentication.
         
         Args:
             doc_id: Document identifier
@@ -84,25 +84,42 @@ class CloudinaryService:
             Secure URL to download the PDF or None if not found
         """
         try:
-            # Try with .pdf extension first
-            public_id = f"uniquery/pdfs/{doc_id}.pdf"
+            # First, try to get the actual resource to verify it exists
+            public_id = f"uniquery/pdfs/{doc_id}"
             try:
                 result = cloudinary.api.resource(
                     public_id,
                     resource_type="raw"
                 )
-                return result['secure_url']
+                # Use the actual public_id from the result
+                actual_public_id = result['public_id']
+                url = cloudinary.utils.cloudinary_url(
+                    actual_public_id,
+                    resource_type="raw",
+                    secure=True,
+                    sign_url=True,
+                    type="upload"
+                )[0]
+                return url
             except:
-                # Try without extension
-                public_id = f"uniquery/pdfs/{doc_id}"
+                # Try with .pdf extension as fallback
+                public_id = f"uniquery/pdfs/{doc_id}.pdf"
                 result = cloudinary.api.resource(
                     public_id,
                     resource_type="raw"
                 )
-                return result['secure_url']
+                actual_public_id = result['public_id']
+                url = cloudinary.utils.cloudinary_url(
+                    actual_public_id,
+                    resource_type="raw",
+                    secure=True,
+                    sign_url=True,
+                    type="upload"
+                )[0]
+                return url
             
         except Exception as e:
-            logger.error(f"Error getting PDF URL: {e}")
+            logger.error(f"Error getting PDF URL for doc_id {doc_id}: {e}")
             return None
     
     def delete_pdf(self, doc_id: str) -> bool:

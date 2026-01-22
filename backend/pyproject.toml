@@ -1,0 +1,5 @@
+[tool.pyright]
+exclude = ["venv", ".venv", "**/__pycache__"]
+
+[tool.mypy]
+exclude = ["venv", ".venv"]

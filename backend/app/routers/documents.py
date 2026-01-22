@@ -112,15 +112,29 @@ async def download_document(doc_id: str):
     """
     Get the download URL for a document's PDF.
     """
-    cloudinary_service = get_cloudinary_service()
+    firebase_service = get_firebase_service()
     
-    pdf_url = cloudinary_service.get_pdf_url(doc_id)
+    # Get document metadata from Firestore
+    doc = firebase_service.get_document_metadata(doc_id)
+    
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Get the base URL
+    pdf_url = doc.get('storage_path')
     
     if pdf_url:
+        # Inject fl_attachment to force download
+        # This handles the CORS/Auth issues by making it a simple navigation/download
+        if '/upload/' in pdf_url and '/fl_attachment/' not in pdf_url:
+            download_url = pdf_url.replace('/upload/', '/upload/fl_attachment/')
+        else:
+            download_url = pdf_url
+
         return {
             "success": True,
             "doc_id": doc_id,
-            "pdf_url": pdf_url
+            "pdf_url": download_url
         }
     else:
         raise HTTPException(status_code=404, detail="PDF not found in storage")
@@ -306,8 +320,10 @@ async def upload_document(
         upload_result = cloudinary_service.upload_pdf(tmp_path, doc_id, cloudinary_metadata)
         
         pdf_url = None
+        cloudinary_public_id = None
         if upload_result:
             pdf_url = upload_result['url']
+            cloudinary_public_id = upload_result['public_id']
             logger.info(f"PDF uploaded to Cloudinary: {pdf_url}")
         else:
             logger.warning("Failed to upload PDF to Cloudinary, but chunks are in Qdrant")
@@ -324,6 +340,7 @@ async def upload_document(
             'version': 1,
             'chunk_count': len(chunks),
             'storage_path': pdf_url,
+            'cloudinary_public_id': cloudinary_public_id,
             'uploaded_by': 'admin',  # TODO: Get from auth context
         }
         firebase_service.create_document_metadata(firestore_data)

@@ -2,7 +2,8 @@ import { useState, type FormEvent, useRef, useEffect } from 'react'
 import { DashboardLayout } from '../../components/layout/DashboardLayout'
 import { useAuth } from '../../contexts/AuthContext'
 import { api, type Citation } from '../../lib/api'
-import { createChatSession, addMessageToSession, loadChatSessions, deleteChatSession, loadChatSession } from '../../lib/chatHistory'
+import { createChatSession, addMessageToSession, loadChatSessions, deleteChatSession, loadChatSession, updateSessionTitle } from '../../lib/chatHistory'
+
 import { PlaceholdersAndVanishInput } from '../../components/ui/placeholders-and-vanish-input'
 import {
     ThumbsUp,
@@ -73,6 +74,9 @@ export function StudentDashboard() {
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
     const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false)
     const [chatSessions, setChatSessions] = useState<any[]>([])
+
+    // Track if title has been set (to update only once per session)
+    const hasTitleBeenSet = useRef(false)
 
     // Filters State
     const [filters, setFilters] = useState({
@@ -165,8 +169,26 @@ export function StudentDashboard() {
                             activeAnswer.text,
                             activeAnswer.citations,
                             activeAnswer.confidence
-                        ).then(() => {
+                        ).then(async () => {
                             console.log('Assistant message saved to session successfully')
+
+                            // Update chat title if it's the first exchange
+                            if (!hasTitleBeenSet.current && messages.length > 0) {
+                                hasTitleBeenSet.current = true
+                                const firstUserMessage = messages.find(m => m.type === 'user')
+                                if (firstUserMessage) {
+                                    const newTitle = generateChatTitle(firstUserMessage.text)
+                                    try {
+                                        await updateSessionTitle(currentSessionId, newTitle)
+                                        // Refresh chat sessions to show updated title
+                                        const sessions = await loadChatSessions(user.uid)
+                                        setChatSessions(sessions)
+                                        console.log('Chat title updated to:', newTitle)
+                                    } catch (err) {
+                                        console.error('Failed to update chat title:', err)
+                                    }
+                                }
+                            }
                         }).catch(err => {
                             console.error('Failed to save assistant message:', err)
                         })
@@ -222,6 +244,7 @@ export function StudentDashboard() {
             setActiveAnswer(null)
             setQuery('')
             setShowMenu(false)
+            hasTitleBeenSet.current = false // Reset for new session
             // Refresh sessions list
             const sessions = await loadChatSessions(user.uid)
             setChatSessions(sessions)
@@ -240,6 +263,8 @@ export function StudentDashboard() {
                 setActiveAnswer(null)
                 setQuery('')
                 setIsChatHistoryOpen(false)
+                // Check if session already has a meaningful title (not "New Chat")
+                hasTitleBeenSet.current = session.title !== 'New Chat'
             }
         } catch (err) {
             console.error('Failed to load session:', err)
@@ -337,18 +362,18 @@ export function StudentDashboard() {
 
     return (
         <DashboardLayout variant="student">
-            <div className="flex h-full relative">
+            <div className="flex h-full relative rounded-2xl border border-border bg-surface shadow-md overflow-hidden transition-all duration-300">
                 {/* Collapsible Chat History Panel */}
                 <div
-                    className={`border-r border-gray-200 bg-white flex-shrink-0 z-20 shadow-lg transition-all duration-300 ease-in-out overflow-hidden ${isChatHistoryOpen ? 'w-72' : 'w-0'
+                    className={`border-r border-border bg-surface flex-shrink-0 z-20 shadow-lg transition-all duration-300 ease-in-out overflow-hidden ${isChatHistoryOpen ? 'w-72' : 'w-0'
                         }`}
                 >
                     <div className="w-72 h-full flex flex-col">
                         {/* New Chat Button Area */}
-                        <div className="p-3 border-b border-gray-100 flex items-center gap-3">
+                        <div className="p-3 border-b border-border flex items-center gap-3">
                             <button
                                 onClick={handleStartNewChat}
-                                className="w-full h-[46px] flex items-center justify-start px-4 bg-gray-50 text-gray-700 rounded-xl hover:bg-primary hover:text-white transition-all shadow-sm"
+                                className="w-full h-[46px] flex items-center justify-start px-4 bg-background text-text rounded-xl hover:bg-primary hover:text-white transition-all shadow-sm"
                             >
                                 <MessageSquarePlus className="w-5 h-5 flex-shrink-0" />
                                 <span className="whitespace-nowrap ml-3 font-medium">New Chat</span>
@@ -361,13 +386,13 @@ export function StudentDashboard() {
                                 <div
                                     key={session.id}
                                     className={`group/item relative p-3 rounded-xl cursor-pointer transition-all flex items-center gap-3 ${session.id === currentSessionId
-                                        ? 'bg-primary/5 text-primary'
-                                        : 'hover:bg-gray-50 text-gray-600'
+                                        ? 'bg-primary/10 text-primary'
+                                        : 'hover:bg-background text-text-muted'
                                         }`}
                                     onClick={() => handleSelectSession(session.id)}
                                 >
                                     <div className="min-w-[24px] flex justify-center items-center">
-                                        <MessageSquarePlus className={`w-5 h-5 transition-colors duration-300 ${session.id === currentSessionId ? 'text-primary' : 'text-gray-400 group-hover/item:text-gray-600'}`} />
+                                        <MessageSquarePlus className={`w-5 h-5 transition-colors duration-300 ${session.id === currentSessionId ? 'text-primary' : 'text-text-muted group-hover/item:text-text'}`} />
                                     </div>
 
                                     <div className="flex-1 min-w-0">
@@ -384,7 +409,7 @@ export function StudentDashboard() {
                                             e.stopPropagation()
                                             handleDeleteSession(session.id)
                                         }}
-                                        className="opacity-0 group-hover/item:opacity-100 p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-all absolute right-2"
+                                        className="opacity-0 group-hover/item:opacity-100 p-1.5 rounded-lg hover:bg-error/10 text-text-muted hover:text-error transition-all absolute right-2"
                                     >
                                         <Trash2 className="w-3.5 h-3.5" />
                                     </button>
@@ -395,24 +420,24 @@ export function StudentDashboard() {
                 </div>
 
                 {/* Main Content Area */}
-                <div className="flex flex-col flex-1 h-full bg-gray-50/50">
+                <div className="flex flex-col flex-1 h-full bg-background">
                     {/* Header - Minimal Glass Effect */}
-                    <div className="flex items-center justify-between px-4 py-3 bg-white/70 backdrop-blur-md border-b border-gray-200/30 sticky top-0 z-10">
+                    <div className="flex items-center justify-between px-4 py-3 bg-surface/80 backdrop-blur-md border-b border-border sticky top-0 z-10">
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => setIsChatHistoryOpen(!isChatHistoryOpen)}
-                                className="p-2 rounded-lg hover:bg-gray-100/80 transition-colors"
+                                className="p-2 rounded-lg hover:bg-background transition-colors"
                             >
-                                <PanelLeft className="w-5 h-5 text-gray-500" />
+                                <PanelLeft className="w-5 h-5 text-text-muted" />
                             </button>
-                            <h2 className="text-lg font-medium text-gray-800">
+                            <h2 className="text-lg font-medium text-text">
                                 UniQuery AI
                             </h2>
                         </div>
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleStartNewChat}
-                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100/80 transition-colors text-gray-500 hover:text-gray-900"
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-background transition-colors text-text-muted hover:text-text"
                             >
                                 <MessageSquarePlus className="w-4.5 h-4.5" />
                                 <span className="text-sm font-medium">New chat</span>
@@ -420,26 +445,26 @@ export function StudentDashboard() {
                             <div className="relative" ref={menuRef}>
                                 <button
                                     onClick={() => setShowMenu(!showMenu)}
-                                    className="p-2 rounded-lg hover:bg-gray-100/80 transition-colors"
+                                    className="p-2 rounded-lg hover:bg-background transition-colors"
                                     aria-label="Open chat menu"
                                 >
-                                    <MoreVertical className="w-5 h-5 text-gray-500" />
+                                    <MoreVertical className="w-5 h-5 text-text-muted" />
                                 </button>
 
                                 {showMenu && (
-                                    <div className="absolute right-0 top-10 w-48 bg-white border border-gray-200/80 rounded-xl shadow-lg py-1.5 z-10 animate-fadeIn">
+                                    <div className="absolute right-0 top-10 w-48 bg-surface border border-border rounded-xl shadow-lg py-1.5 z-10 animate-fadeIn">
                                         <button
                                             onClick={handleClearHistory}
-                                            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-text hover:bg-background transition-colors"
                                         >
-                                            <Trash2 className="w-4 h-4 text-gray-500" />
+                                            <Trash2 className="w-4 h-4 text-text-muted" />
                                             Clear history
                                         </button>
                                         <button
                                             onClick={handleExportChat}
-                                            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-text hover:bg-background transition-colors"
                                         >
-                                            <Download className="w-4 h-4 text-gray-500" />
+                                            <Download className="w-4 h-4 text-text-muted" />
                                             Export
                                         </button>
                                     </div>
@@ -450,17 +475,17 @@ export function StudentDashboard() {
 
 
                     {/* Filters Bar */}
-                    <div className="bg-white/50 backdrop-blur-sm border-b border-gray-200/50 px-4 py-2">
+                    <div className="bg-surface/50 backdrop-blur-sm border-b border-border px-4 py-2">
                         <div className="flex items-center gap-2 mb-2">
                             <button
                                 onClick={() => setShowFilters(!showFilters)}
-                                className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                                className="flex items-center gap-1.5 text-xs font-medium text-text-muted hover:text-text transition-colors"
                             >
                                 <Filter className="w-3.5 h-3.5" />
                                 {showFilters ? 'Hide Context Filters' : 'Show Context Filters'}
                             </button>
                             {!showFilters && (filters.program || filters.department || filters.semester) && (
-                                <span className="text-xs text-gray-400">
+                                <span className="text-xs text-text-light">
                                     Active: {[filters.program, filters.department, filters.semester ? `Sem ${filters.semester}` : ''].filter(Boolean).join(' • ')}
                                 </span>
                             )}
@@ -474,7 +499,7 @@ export function StudentDashboard() {
                                     value={filters.program}
                                     onChange={(e) => setFilters({ ...filters, program: e.target.value })}
                                     placeholder="All Programs"
-                                    className="bg-white h-8 text-sm"
+                                    className="bg-surface h-8 text-sm"
                                 />
                                 <Select
                                     label="Department"
@@ -482,7 +507,7 @@ export function StudentDashboard() {
                                     value={filters.department}
                                     onChange={(e) => setFilters({ ...filters, department: e.target.value })}
                                     placeholder="All Departments"
-                                    className="bg-white h-8 text-sm"
+                                    className="bg-surface h-8 text-sm"
                                 />
                                 <Select
                                     label="Semester"
@@ -490,7 +515,7 @@ export function StudentDashboard() {
                                     value={filters.semester}
                                     onChange={(e) => setFilters({ ...filters, semester: e.target.value })}
                                     placeholder="All Semesters"
-                                    className="bg-white h-8 text-sm"
+                                    className="bg-surface h-8 text-sm"
                                 />
                             </div>
                         )}
@@ -501,17 +526,17 @@ export function StudentDashboard() {
                         {isLoadingHistory && (
                             <div className="flex items-center justify-center h-full">
                                 <div className="flex items-center gap-1.5">
-                                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                                    <div className="w-2 h-2 bg-text-muted rounded-full animate-bounce"></div>
+                                    <div className="w-2 h-2 bg-text-muted rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                                    <div className="w-2 h-2 bg-text-muted rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                                 </div>
                             </div>
                         )}
                         {!isLoadingHistory && messages.length === 0 && !activeAnswer && (
                             <div className="flex items-center justify-center h-full">
                                 <div className="text-center space-y-3 px-4 max-w-xl">
-                                    <h1 className="text-3xl font-semibold text-gray-800">Ask UniQuery AI</h1>
-                                    <p className="text-gray-500 text-base">Ask any question about your documents, schedule, or courses.</p>
+                                    <h1 className="text-3xl font-semibold text-text">Ask UniQuery AI</h1>
+                                    <p className="text-text-muted text-base">Ask any question about your documents, schedule, or courses.</p>
                                 </div>
                             </div>
                         )}
@@ -524,7 +549,7 @@ export function StudentDashboard() {
                                             {/* Message Bubble */}
                                             <div className={`${msg.type === 'user'
                                                 ? 'bg-primary text-white rounded-2xl rounded-tr-sm px-4 py-3'
-                                                : 'text-gray-800'}`}>
+                                                : 'text-text'}`}>
                                                 <p className="text-[15px] leading-relaxed">{msg.text}</p>
                                             </div>
 
@@ -533,9 +558,9 @@ export function StudentDashboard() {
                                                 <div className="mt-3 overflow-x-auto scrollbar-hide">
                                                     <div className="flex gap-2 pb-1">
                                                         {msg.citations.map((citation, idx) => (
-                                                            <div key={idx} className="flex-shrink-0 text-xs bg-white border border-gray-200 rounded-full px-3 py-1.5 text-gray-600 hover:border-gray-300 transition-colors cursor-pointer">
-                                                                <span className="font-medium text-gray-800">{citation.title}</span>
-                                                                <span className="text-gray-400 mx-1.5">·</span>
+                                                            <div key={idx} className="flex-shrink-0 text-xs bg-surface border border-border rounded-full px-3 py-1.5 text-text-muted hover:border-text-light transition-colors cursor-pointer">
+                                                                <span className="font-medium text-text">{citation.title}</span>
+                                                                <span className="text-text-light mx-1.5">·</span>
                                                                 <span>p.{citation.page}</span>
                                                             </div>
                                                         ))}
@@ -546,13 +571,13 @@ export function StudentDashboard() {
                                             {/* Confidence - Minimal */}
                                             {msg.type === 'assistant' && msg.confidence !== undefined && (
                                                 <div className="mt-2 flex items-center gap-2">
-                                                    <div className="w-16 h-1 bg-gray-200 rounded-full overflow-hidden">
+                                                    <div className="w-16 h-1 bg-border rounded-full overflow-hidden">
                                                         <div
-                                                            className="h-full bg-gray-400 rounded-full"
+                                                            className="h-full bg-text-muted rounded-full"
                                                             style={{ width: `${msg.confidence * 100}%` }}
                                                         ></div>
                                                     </div>
-                                                    <span className="text-xs text-gray-400">{(msg.confidence * 100).toFixed(0)}%</span>
+                                                    <span className="text-xs text-text-light">{(msg.confidence * 100).toFixed(0)}%</span>
                                                 </div>
                                             )}
                                         </div>
@@ -563,9 +588,9 @@ export function StudentDashboard() {
                                 {isTyping && (
                                     <div className="flex justify-start animate-fadeIn">
                                         <div className="flex items-center gap-1 py-2">
-                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                                            <div className="w-2 h-2 bg-text-muted rounded-full animate-bounce"></div>
+                                            <div className="w-2 h-2 bg-text-muted rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                                            <div className="w-2 h-2 bg-text-muted rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                                         </div>
                                     </div>
                                 )}
@@ -574,11 +599,11 @@ export function StudentDashboard() {
                                 {activeAnswer && !isTyping && (
                                     <div className="flex justify-start animate-fadeIn">
                                         <div className="max-w-full">
-                                            <div className="text-gray-800">
+                                            <div className="text-text">
                                                 <p className="text-[15px] leading-relaxed">
                                                     {displayedText}
                                                     {displayedText.length < activeAnswer.text.length && (
-                                                        <span className="inline-block w-0.5 h-4 bg-gray-400 ml-0.5 animate-pulse"></span>
+                                                        <span className="inline-block w-0.5 h-4 bg-text-muted ml-0.5 animate-pulse"></span>
                                                     )}
                                                 </p>
                                             </div>
@@ -588,9 +613,9 @@ export function StudentDashboard() {
                                                 <div className="mt-3 overflow-x-auto scrollbar-hide animate-fadeIn">
                                                     <div className="flex gap-2 pb-1">
                                                         {activeAnswer.citations.map((citation, idx) => (
-                                                            <div key={idx} className="flex-shrink-0 text-xs bg-white border border-gray-200 rounded-full px-3 py-1.5 text-gray-600 hover:border-gray-300 transition-colors cursor-pointer">
-                                                                <span className="font-medium text-gray-800">{citation.title}</span>
-                                                                <span className="text-gray-400 mx-1.5">·</span>
+                                                            <div key={idx} className="flex-shrink-0 text-xs bg-surface border border-border rounded-full px-3 py-1.5 text-text-muted hover:border-text-light transition-colors cursor-pointer">
+                                                                <span className="font-medium text-text">{citation.title}</span>
+                                                                <span className="text-text-light mx-1.5">·</span>
                                                                 <span>p.{citation.page}</span>
                                                             </div>
                                                         ))}
@@ -601,13 +626,13 @@ export function StudentDashboard() {
                                             {/* Confidence */}
                                             {activeAnswer.confidence !== undefined && displayedText.length === activeAnswer.text.length && (
                                                 <div className="mt-2 flex items-center gap-2 animate-fadeIn">
-                                                    <div className="w-16 h-1 bg-gray-200 rounded-full overflow-hidden">
+                                                    <div className="w-16 h-1 bg-border rounded-full overflow-hidden">
                                                         <div
-                                                            className="h-full bg-gray-400 rounded-full"
+                                                            className="h-full bg-text-muted rounded-full"
                                                             style={{ width: `${activeAnswer.confidence * 100}%` }}
                                                         ></div>
                                                     </div>
-                                                    <span className="text-xs text-gray-400">{(activeAnswer.confidence * 100).toFixed(0)}%</span>
+                                                    <span className="text-xs text-text-light">{(activeAnswer.confidence * 100).toFixed(0)}%</span>
                                                 </div>
                                             )}
 
@@ -615,13 +640,13 @@ export function StudentDashboard() {
                                             {displayedText.length === activeAnswer.text.length && (
                                                 <div className="flex items-center gap-1 mt-3 animate-fadeIn">
                                                     <button
-                                                        className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                                                        className="p-1.5 rounded-lg hover:bg-background text-text-light hover:text-text transition-colors"
                                                         aria-label="Mark answer as helpful"
                                                     >
                                                         <ThumbsUp className="w-3.5 h-3.5" />
                                                     </button>
                                                     <button
-                                                        className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                                                        className="p-1.5 rounded-lg hover:bg-background text-text-light hover:text-text transition-colors"
                                                         aria-label="Mark answer as not helpful"
                                                     >
                                                         <ThumbsDown className="w-3.5 h-3.5" />
@@ -648,7 +673,7 @@ export function StudentDashboard() {
                     </div>
 
                     {/* Input - Floating at Bottom with Blur */}
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-gray-50 via-gray-50/95 to-transparent pt-8 pb-4 px-4">
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background/95 to-transparent pt-8 pb-4 px-4">
                         <div className="max-w-3xl mx-auto">
                             <PlaceholdersAndVanishInput
                                 placeholders={EXAMPLE_QUESTIONS}
@@ -662,3 +687,7 @@ export function StudentDashboard() {
         </DashboardLayout >
     )
 }
+function generateChatTitle(text: string) {
+    throw new Error('Function not implemented.')
+}
+

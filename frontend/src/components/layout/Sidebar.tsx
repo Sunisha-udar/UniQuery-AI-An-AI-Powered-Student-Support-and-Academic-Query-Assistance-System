@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
+import { useTheme } from '../../contexts/ThemeContext'
 import { Badge } from '../ui/Badge'
 import { LogoutModal } from '../ui/LogoutModal'
 import {
@@ -12,7 +13,9 @@ import {
     LogOut,
     GraduationCap,
     User,
-    MessageSquare
+    MessageSquare,
+    Moon,
+    Sun
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -43,6 +46,7 @@ const STUDENT_NAV: NavItem[] = [
 
 export function Sidebar({ variant }: SidebarProps) {
     const { user } = useAuth()
+    const { theme, toggleTheme } = useTheme()
     const location = useLocation()
     const navItems = variant === 'admin' ? ADMIN_NAV : STUDENT_NAV
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
@@ -98,13 +102,22 @@ export function Sidebar({ variant }: SidebarProps) {
                         <p className="text-xs text-text-muted capitalize">{variant}</p>
                     </div>
                 </div>
-                <button
-                    onClick={() => setIsLogoutModalOpen(true)}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-text-muted hover:text-text hover:bg-background transition-colors"
-                >
-                    <LogOut className="w-4 h-4" />
-                    Logout
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={toggleTheme}
+                        className="flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium text-text-muted hover:text-text hover:bg-background transition-colors"
+                        title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                    >
+                        {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                    </button>
+                    <button
+                        onClick={() => setIsLogoutModalOpen(true)}
+                        className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-text-muted hover:text-text hover:bg-background transition-colors"
+                    >
+                        <LogOut className="w-4 h-4" />
+                        Logout
+                    </button>
+                </div>
             </div>
 
             <LogoutModal
