@@ -221,15 +221,22 @@ class QdrantService:
     def search(
         self,
         query: str,
-        limit: int = 5
+        limit: int = 5,
+        program: Optional[str] = None,
+        department: Optional[str] = None,
+        semester: Optional[int] = None,
+        category: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
-        Pure semantic search without metadata filtering.
-        The LLM will understand context from the document content itself.
+        Semantic search with optional metadata filtering.
         
         Args:
             query: Natural language query
             limit: Maximum number of results
+            program: Filter by academic program
+            department: Filter by department
+            semester: Filter by semester
+            category: Filter by document category
             
         Returns:
             List of search results with text and metadata
@@ -238,10 +245,40 @@ class QdrantService:
             # Embed the query
             query_vector = self.embed_text(query)
             
-            # Perform search without any filters
+            # Build filter conditions
+            filter_conditions = []
+            
+            if program and program != "All":
+                filter_conditions.append(
+                    FieldCondition(key="program", match=MatchValue(value=program))
+                )
+            
+            if department and department != "All":
+                filter_conditions.append(
+                    FieldCondition(key="department", match=MatchValue(value=department))
+                )
+            
+            if semester and semester != 0:
+                filter_conditions.append(
+                    FieldCondition(key="semester", match=MatchValue(value=semester))
+                )
+                
+            if category and category != "all":
+                filter_conditions.append(
+                    FieldCondition(key="category", match=MatchValue(value=category))
+                )
+            
+            # Create Qdrant filter if we have conditions
+            qdrant_filter = None
+            if filter_conditions:
+                qdrant_filter = Filter(must=filter_conditions)
+                logger.info(f"Applying filters: program={program}, dept={department}, sem={semester}, cat={category}")
+            
+            # Perform search with filters
             response = self.client.query_points(
                 collection_name=self.collection_name,
                 query=query_vector,
+                query_filter=qdrant_filter,
                 limit=limit,
                 with_payload=True
             )

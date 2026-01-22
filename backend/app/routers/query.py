@@ -53,13 +53,16 @@ async def process_query(request: QueryRequest):
         
         logger.info(f"Processing query: {request.question}")
         
-        # Search ALL documents without filters
-        # The AI will understand the context from the user's question
-        logger.info(f"Searching ALL documents for: '{request.question}'")
+        # Search with filters if provided
+        logger.info(f"Searching for: '{request.question}' with filters: program={request.program}, dept={request.department}, sem={request.semester}")
         
         search_results = qdrant_service.search(
             query=request.question,
-            limit=5  # Top 5 most relevant chunks
+            limit=5,  # Top 5 most relevant chunks
+            program=request.program,
+            department=request.department,
+            semester=request.semester,
+            category=request.category
         )
         
         logger.info(f"Search returned {len(search_results)} results")
