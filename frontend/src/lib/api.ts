@@ -6,6 +6,27 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 console.log('[API] Using API URL:', API_BASE_URL);
 
+// Warm up backend on app load (helps with Render cold starts)
+const warmUpBackend = async () => {
+  try {
+    console.log('[API] Warming up backend...');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000); // 5s timeout
+    
+    await fetch(`${API_BASE_URL}/health`, { 
+      signal: controller.signal,
+      mode: 'cors'
+    });
+    clearTimeout(timeout);
+    console.log('[API] Backend is ready!');
+  } catch (error) {
+    console.warn('[API] Backend warmup failed (may be sleeping):', error);
+  }
+};
+
+// Start warming up immediately when module loads
+warmUpBackend();
+
 interface UploadDocumentParams {
   file: File;
   title: string;
@@ -103,26 +124,48 @@ class ApiClient {
    * Query documents using RAG pipeline
    */
   async queryDocuments(params: QueryParams): Promise<QueryResponse> {
-    const response = await fetch(`${this.baseUrl}/api/query`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        question: params.question,
-        program: params.program || null,
-        department: params.department || null,
-        semester: params.semester || null,
-        category: params.category || null,
-      }),
-    });
+    console.log('[API] Querying documents with:', params);
+    
+    // Add timeout for slow backend
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Query failed' }));
-      throw new Error(error.detail || 'Query failed');
+    try {
+      const response = await fetch(`${this.baseUrl}/api/query`, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          question: params.question,
+          program: params.program || null,
+          department: params.department || null,
+          semester: params.semester || null,
+          category: params.category || null,
+        }),
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Query failed' }));
+        console.error('[API] Query error:', error);
+        throw new Error(error.detail || 'Query failed');
+      }
+
+      const result = await response.json();
+      console.log('[API] Query result:', result);
+      return result;
+    } catch (error) {
+      clearTimeout(timeout);
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error('[API] Query timeout - backend is taking too long');
+        throw new Error('Backend is waking up from sleep. Please try again in 30 seconds.');
+      }
+      console.error('[API] Query failed:', error);
+      throw error;
     }
-
-    return response.json();
   }
 
   /**

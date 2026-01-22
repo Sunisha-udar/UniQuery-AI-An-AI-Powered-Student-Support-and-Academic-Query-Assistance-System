@@ -101,6 +101,7 @@ export function StudentDashboard() {
 
             try {
                 setIsLoadingHistory(true)
+                console.log('[Dashboard] Initializing session...')
                 // Load existing sessions
                 const sessions = await loadChatSessions(user.uid)
                 setChatSessions(sessions)
@@ -118,13 +119,12 @@ export function StudentDashboard() {
                     console.log('[Dashboard] Created new session:', newSessionId)
                 }
             } catch (err) {
-                console.error('Failed to initialize session:', err)
+                console.error('[Dashboard] Failed to initialize session:', err)
             } finally {
                 setIsLoadingHistory(false)
             }
         }
 
-        initSession()
         initSession()
     }, [user?.uid])
 
