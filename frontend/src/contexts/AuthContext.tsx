@@ -99,6 +99,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const login = async (email: string, password: string) => {
         await signInWithEmailAndPassword(auth, email, password)
+        // Force refresh user data after login
+        const firebaseUser = auth.currentUser
+        if (firebaseUser) {
+            const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid))
+            if (userDoc.exists()) {
+                const userData = userDoc.data()
+                setUser({
+                    uid: firebaseUser.uid,
+                    email: firebaseUser.email,
+                    role: userData.role || 'student',
+                    displayName: userData.displayName,
+                    phoneNumber: userData.phoneNumber,
+                    studentId: userData.studentId,
+                    bio: userData.bio,
+                    program: userData.program,
+                    department: userData.department,
+                    semester: userData.semester,
+                })
+            }
+        }
     }
 
     const signup = async (email: string, password: string, role: UserRole, profile?: Partial<User>) => {
