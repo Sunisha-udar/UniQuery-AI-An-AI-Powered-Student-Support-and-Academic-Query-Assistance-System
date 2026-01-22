@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.services.cloudinary_service import get_cloudinary_service
 from app.config import get_settings

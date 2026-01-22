@@ -5,7 +5,6 @@ import { Button } from '../../components/ui/Button'
 import { Card, CardContent, CardHeader } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Input } from '../../components/ui/Input'
-import { Select } from '../../components/ui/Select'
 import { LogoutModal } from '../../components/ui/LogoutModal'
 import { DeleteDocumentModal } from '../../components/ui/DeleteDocumentModal'
 import { api, type Document } from '../../lib/api'
@@ -36,15 +35,7 @@ const NAV_ITEMS = [
     { icon: Settings, label: 'Settings', href: '/admin/settings' },
 ]
 
-const CATEGORIES = [
-    { value: 'all', label: 'All Categories' },
-    { value: 'syllabus', label: 'Syllabus' },
-    { value: 'exam_rules', label: 'Exam Rules' },
-    { value: 'attendance', label: 'Attendance' },
-    { value: 'academic_calendar', label: 'Academic Calendar' },
-    { value: 'backlog_rules', label: 'Backlog Rules' },
-    { value: 'fees', label: 'Fees' },
-]
+
 
 
 
@@ -52,12 +43,13 @@ export function AdminDocuments() {
     const { user } = useAuth()
     const location = useLocation()
     const [searchQuery, setSearchQuery] = useState('')
-    const [categoryFilter, setCategoryFilter] = useState('all')
     const [showUploadModal, setShowUploadModal] = useState(false)
     const [uploadSuccess, setUploadSuccess] = useState(false)
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
     const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
+    const [currentPage, setCurrentPage] = useState(1)
+    const ITEMS_PER_PAGE = 10
 
     // Real API state
     const [documents, setDocuments] = useState<Document[]>([])
@@ -68,19 +60,17 @@ export function AdminDocuments() {
     // Upload form state
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const [title, setTitle] = useState('')
-    const [category, setCategory] = useState('')
 
     // Load documents on mount
     useEffect(() => {
         loadDocuments()
-    }, [categoryFilter])
+    }, [])
 
     const loadDocuments = async () => {
         try {
             setLoading(true)
             setError(null)
-            const filters = categoryFilter !== 'all' ? { category: categoryFilter } : undefined
-            const docs = await api.getDocuments(filters)
+            const docs = await api.getDocuments()
             setDocuments(docs)
         } catch (err) {
             // Only show error if it's not a network issue or empty collection
@@ -104,6 +94,15 @@ export function AdminDocuments() {
         return matchesSearch
     })
 
+    const totalPages = Math.ceil(filteredDocs.length / ITEMS_PER_PAGE)
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+    const paginatedDocs = filteredDocs.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+
+    // Reset to page 1 when search changes
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [searchQuery])
+
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (file) {
@@ -114,8 +113,8 @@ export function AdminDocuments() {
     const handleUpload = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        if (!selectedFile || !title || !category) {
-            setError('Please fill in all fields')
+        if (!selectedFile) {
+            setError('Please select a file')
             return
         }
 
@@ -125,8 +124,7 @@ export function AdminDocuments() {
 
             await api.uploadDocument(
                 selectedFile,
-                title,
-                category
+                title
             )
 
             setUploadSuccess(true)
@@ -134,7 +132,6 @@ export function AdminDocuments() {
             // Reset form
             setSelectedFile(null)
             setTitle('')
-            setCategory('')
 
             // Reload documents
             await loadDocuments()
@@ -260,7 +257,12 @@ export function AdminDocuments() {
                                 <FileText className="w-5 h-5 text-primary" />
                             </div>
                             <div>
-                                <h1 className="text-2xl font-bold text-text">Documents</h1>
+                                <div className="flex items-center gap-2">
+                                    <h1 className="text-2xl font-bold text-text">Documents</h1>
+                                    <Badge variant="secondary" className="text-xs font-semibold">
+                                        {documents.length} total
+                                    </Badge>
+                                </div>
                                 <p className="text-sm text-text-muted mt-1">Manage uploaded academic documents</p>
                             </div>
                         </div>
@@ -286,12 +288,6 @@ export function AdminDocuments() {
                                         />
                                     </div>
                                 </div>
-                                <Select
-                                    options={CATEGORIES}
-                                    value={categoryFilter}
-                                    onChange={(e) => setCategoryFilter(e.target.value)}
-                                    className="w-48"
-                                />
                             </div>
                         </CardContent>
                     </Card>
@@ -323,7 +319,6 @@ export function AdminDocuments() {
                                         <thead>
                                             <tr className="border-b border-border">
                                                 <th className="text-left text-sm font-medium text-text-muted px-5 py-4">Document</th>
-                                                <th className="text-left text-sm font-medium text-text-muted px-5 py-4">Category</th>
                                                 <th className="text-left text-sm font-medium text-text-muted px-5 py-4">Version</th>
                                                 <th className="text-left text-sm font-medium text-text-muted px-5 py-4">Chunks</th>
                                                 <th className="text-left text-sm font-medium text-text-muted px-5 py-4">Uploaded</th>
@@ -331,7 +326,7 @@ export function AdminDocuments() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {filteredDocs.map((doc) => (
+                                            {paginatedDocs.map((doc) => (
                                                 <tr key={doc.id} className="border-b border-border last:border-0 hover:bg-background transition-colors">
                                                     <td className="px-5 py-4">
                                                         <div className="flex items-center gap-3">
@@ -340,9 +335,6 @@ export function AdminDocuments() {
                                                             </div>
                                                             <span className="font-medium text-text">{doc.title}</span>
                                                         </div>
-                                                    </td>
-                                                    <td className="px-5 py-4">
-                                                        <Badge variant="default">{doc.category.replace('_', ' ')}</Badge>
                                                     </td>
                                                     <td className="px-5 py-4 text-sm text-text-muted">{doc.program}</td>
                                                     <td className="px-5 py-4 text-sm text-text-muted">{doc.department}</td>
@@ -376,6 +368,47 @@ export function AdminDocuments() {
                                 </div>
                             )}
                         </CardContent>
+                        {filteredDocs.length > ITEMS_PER_PAGE && (
+                            <div className="px-5 py-4 border-t border-border flex items-center justify-between">
+                                <p className="text-sm text-text-muted">
+                                    Showing {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, filteredDocs.length)} of {filteredDocs.length}
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                    >
+                                        Previous
+                                    </Button>
+                                    <div className="flex items-center gap-1">
+                                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                            <button
+                                                key={page}
+                                                onClick={() => setCurrentPage(page)}
+                                                className={clsx(
+                                                    'w-8 h-8 rounded-lg text-sm font-medium transition-colors',
+                                                    currentPage === page
+                                                        ? 'bg-primary text-white'
+                                                        : 'text-text-muted hover:bg-background hover:text-text'
+                                                )}
+                                            >
+                                                {page}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        Next
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                     </Card>
                 </div>
             </main>
@@ -440,21 +473,13 @@ export function AdminDocuments() {
                                     </div>
 
                                     <Input
-                                        label="Document Title"
-                                        placeholder="e.g., CSE Syllabus 2024"
+                                        label="Document Title (Optional)"
+                                        placeholder="Leave empty to auto-extract from PDF"
                                         value={title}
                                         onChange={(e) => setTitle(e.target.value)}
-                                        required
                                     />
 
-                                    <Select
-                                        label="Category"
-                                        options={CATEGORIES.filter(c => c.value !== 'all')}
-                                        placeholder="Select category"
-                                        value={category}
-                                        onChange={(e) => setCategory(e.target.value)}
-                                        required
-                                    />
+
 
                                     <div className="flex gap-3 pt-2">
                                         <Button

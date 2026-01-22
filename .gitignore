@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+.venv
 
 # Frontend build
 frontend/dist
@@ -34,3 +35,9 @@ backend/**/__pycache__
 
 .env
 /.agent
+
+
+# Project specific
+krmu/
+
+serviceAccountKey.json

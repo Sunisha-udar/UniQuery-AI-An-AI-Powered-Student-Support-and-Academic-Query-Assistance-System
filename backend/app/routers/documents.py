@@ -14,6 +14,7 @@ from app.services.qdrant_service import get_qdrant_service
 from app.services.cloudinary_service import get_cloudinary_service
 from app.services.document_processor import get_document_processor
 from app.services.firebase_service import get_firebase_service
+from app.services.name_extractor import get_name_extractor
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -42,72 +43,30 @@ async def list_documents(
     """
     try:
         firebase_service = get_firebase_service()
-        cloudinary_service = get_cloudinary_service()
         
-        # Build filter conditions
-        filter_conditions = []
-        if category:
-            filter_conditions.append({"key": "category", "match": {"value": category}})
-        if program:
-            filter_conditions.append({"key": "program", "match": {"value": program}})
-        if department:
-            filter_conditions.append({"key": "department", "match": {"value": department}})
+        # Get documents from Firestore (fast)
+        docs = firebase_service.list_documents(category, program, department)
         
-        # Get all points from Qdrant with filters
-        from qdrant_client.models import Filter, FieldCondition, MatchValue
-        
-        qdrant_filter = None
-        if filter_conditions:
-            conditions = [
-                FieldCondition(key=cond["key"], match=MatchValue(value=cond["match"]["value"]))
-                for cond in filter_conditions
-            ]
-            qdrant_filter = Filter(must=conditions)
-        
-        # Scroll through all points to get unique documents
-        points = qdrant_service.client.scroll(
-            collection_name=qdrant_service.collection_name,
-            scroll_filter=qdrant_filter,
-            limit=1000,  # Adjust based on your needs
-            with_payload=True,
-            with_vectors=False
-        )[0]
-        
-        # Group by doc_id to get unique documents
-        docs_dict = {}
-        for point in points:
-            payload = point.payload
-            doc_id = payload.get('doc_id')
-            
-            if doc_id and doc_id not in docs_dict:
-                # Get PDF URL from Cloudinary
-                pdf_url = cloudinary_service.get_pdf_url(doc_id)
-                
-                docs_dict[doc_id] = {
-                    'id': doc_id,
-                    'title': payload.get('title', 'Untitled'),
-                    'category': payload.get('category', 'unknown'),
-                    'program': payload.get('program', 'unknown'),
-                    'department': payload.get('department', 'unknown'),
-                    'version': payload.get('version', 1),
-                    'uploaded_at': payload.get('uploaded_at', ''),
-                    'chunk_count': 0,
-                    'pdf_url': pdf_url
-                }
-            
-            # Count chunks for this document
-            if doc_id in docs_dict:
-                docs_dict[doc_id]['chunk_count'] += 1
-        
-        # Convert to list and sort by upload date (newest first)
-        documents = list(docs_dict.values())
-        documents.sort(key=lambda x: x.get('uploaded_at', ''), reverse=True)
+        # Convert to response format
+        documents = [
+            Document(
+                id=doc.get('doc_id', ''),
+                title=doc.get('title', 'Untitled'),
+                category=doc.get('category', 'unknown'),
+                program=doc.get('program', 'unknown'),
+                department=doc.get('department', 'unknown'),
+                version=doc.get('version', 1),
+                uploaded_at=doc.get('uploaded_at', ''),
+                chunk_count=doc.get('chunk_count', 0),
+                pdf_url=doc.get('storage_path')
+            )
+            for doc in docs
+        ]
         
         return documents
         
     except Exception as e:
         logger.error(f"Error listing documents: {e}")
-        # Return empty list instead of error to avoid breaking the UI
         return []
 
 
@@ -216,7 +175,7 @@ async def delete_document(doc_id: str):
 @router.post("/upload")
 async def upload_document(
     file: UploadFile = File(...),
-    title: str = Form(...),
+    title: str = Form(None),
     category: str = Form(...),
     program: str = Form("All"),
     department: str = Form("All"),
@@ -245,6 +204,7 @@ async def upload_document(
     qdrant_service = get_qdrant_service()
     cloudinary_service = get_cloudinary_service()
     firebase_service = get_firebase_service()
+    name_extractor = get_name_extractor()
     
     # Check if file type is supported
     if not doc_processor.is_supported(file.filename):
@@ -260,17 +220,29 @@ async def upload_document(
     tmp_path = None
     
     try:
-        # Save uploaded file temporarily
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+        # Save uploaded file temporarily with correct extension
+        file_extension = os.path.splitext(file.filename)[1] or '.pdf'
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as tmp_file:
             content = await file.read()
             tmp_file.write(content)
             tmp_path = tmp_file.name
         
         logger.info(f"Processing uploaded file: {file.filename}")
         
+        # Auto-extract title from PDF content if not provided
+        if not title:
+            extracted_name = name_extractor.extract_document_name(tmp_path)
+            if extracted_name:
+                title = extracted_name
+                logger.info(f"Auto-extracted title: {title}")
+            else:
+                # Fallback to filename without extension
+                title = file.filename.rsplit('.', 1)[0]
+                logger.info(f"Using filename as title: {title}")
+        
         # Detect file type
         file_type = doc_processor.get_file_type(file.filename)
-        logger.info(f"Detected file type: {file_type}")
+        logger.debug(f"Detected file type: {file_type}")
         
         # Generate document ID
         from datetime import datetime
@@ -287,12 +259,12 @@ async def upload_document(
         doc_id = doc_processor.generate_doc_id(file.filename, doc_metadata)
         doc_metadata['doc_id'] = doc_id
         
-        logger.info(f"Generated doc_id: {doc_id}")
+        logger.debug(f"Generated doc_id: {doc_id}")
         
         # Process document into chunks
         chunks = doc_processor.process_document(tmp_path, doc_metadata)
         
-        logger.info(f"Created {len(chunks)} chunks")
+        logger.debug(f"Created {len(chunks)} chunks")
         
         # Extract text and metadata for Qdrant
         chunk_texts = [chunk['text'] for chunk in chunks]
@@ -306,21 +278,25 @@ async def upload_document(
                 'doc_id': chunk['doc_id'],
                 'page': chunk['page'],
                 'title': chunk['title'],
-                'version': chunk['version'],
-                'uploaded_at': doc_metadata['uploaded_at']
+                'version': chunk['version']
             }
             for chunk in chunks
         ]
         
         # Insert into Qdrant
-        logger.info(f"Inserting {len(chunk_texts)} chunks into Qdrant...")
-        success = qdrant_service.insert_documents(chunk_texts, chunk_metadata)
-        
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to insert into Qdrant")
+        logger.debug(f"Inserting {len(chunk_texts)} chunks into Qdrant...")
+        try:
+            success = qdrant_service.insert_documents(chunk_texts, chunk_metadata)
+            
+            if not success:
+                logger.error("Qdrant insertion returned False")
+                raise HTTPException(status_code=500, detail="Failed to insert document chunks into vector database")
+        except Exception as qdrant_error:
+            logger.error(f"Qdrant insertion failed: {qdrant_error}")
+            raise HTTPException(status_code=500, detail=f"Vector database error: {str(qdrant_error)}")
         
         # Upload PDF to Cloudinary
-        logger.info(f"Uploading PDF to Cloudinary...")
+        logger.debug(f"Uploading PDF to Cloudinary...")
         cloudinary_metadata = {
             'title': title,
             'category': category,
@@ -373,6 +349,21 @@ async def upload_document(
                 "pdf_url": pdf_url
             }
         }
+    
+    except ValueError as ve:
+        # Specific handling for image-only PDFs
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except:
+                pass
+        
+        error_msg = str(ve)
+        logger.error(f"Validation error: {error_msg}")
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Cannot process this PDF: {error_msg}"
+        )
             
     except Exception as e:
         # Clean up temp file if it exists

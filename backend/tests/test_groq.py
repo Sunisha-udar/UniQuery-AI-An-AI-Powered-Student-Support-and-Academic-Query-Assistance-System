@@ -4,7 +4,7 @@ Test Groq LLM integration
 
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.services.groq_service import get_groq_service
 from app.config import get_settings

@@ -7,6 +7,7 @@ import logging
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 import hashlib
+import os
 
 # PDF processing
 import PyPDF2
@@ -127,20 +128,48 @@ class DocumentProcessor:
         pages = []
         
         try:
-            with pdfplumber.open(pdf_path) as pdf:
-                for page_num, page in enumerate(pdf.pages, start=1):
-                    text = page.extract_text()
-                    if text and text.strip():
-                        pages.append({
-                            'page': page_num,
-                            'text': text.strip()
-                        })
+            # Check if file exists and get size
+            if not os.path.exists(pdf_path):
+                raise FileNotFoundError(f"PDF file not found: {pdf_path}")
             
-            logger.info(f"Extracted {len(pages)} pages from PDF")
+            file_size = os.path.getsize(pdf_path)
+            logger.debug(f"Opening PDF: {pdf_path} (size: {file_size} bytes)")
+            
+            with pdfplumber.open(pdf_path) as pdf:
+                total_pages = len(pdf.pages)
+                logger.debug(f"PDF has {total_pages} total pages")
+                
+                for page_num, page in enumerate(pdf.pages, start=1):
+                    try:
+                        text = page.extract_text()
+                        if text and text.strip():
+                            pages.append({
+                                'page': page_num,
+                                'text': text.strip()
+                            })
+                            logger.debug(f"Page {page_num}: extracted {len(text)} characters")
+                        else:
+                            logger.warning(f"Page {page_num}: no text extracted (might be image-only)")
+                    except Exception as page_error:
+                        logger.error(f"Error extracting page {page_num}: {page_error}")
+                        # Continue to next page instead of failing completely
+                        continue
+            
+            logger.info(f"Extracted {len(pages)} pages with text from {total_pages} total pages")
+            
+            if len(pages) == 0:
+                error_msg = (
+                    f"No text extracted from PDF. This is likely a scanned/image-based PDF without a text layer. "
+                    f"To process this document, you'll need OCR (Optical Character Recognition). "
+                    f"Consider converting the PDF to a text-based format first, or contact support for OCR capabilities."
+                )
+                logger.error(error_msg)
+                raise ValueError("Image-only PDF detected: No extractable text found. OCR required for scanned documents.")
+            
             return pages
             
         except Exception as e:
-            logger.error(f"Error extracting PDF: {e}")
+            logger.error(f"Error extracting PDF from {pdf_path}: {type(e).__name__}: {e}")
             raise
     
     def _extract_word(self, docx_path: str) -> List[Dict[str, Any]]:
@@ -325,6 +354,7 @@ class DocumentProcessor:
         # Process each page/sheet/slide
         all_chunks = []
         chunk_id = 0
+        doc_id = doc_metadata.get('doc_id')
         
         for page_data in pages:
             page_num = page_data['page']
@@ -336,11 +366,13 @@ class DocumentProcessor:
             # Add metadata to each chunk
             for chunk_text in chunks:
                 chunk_id += 1
+                # Generate unique ID using hash of doc_id + chunk_id
+                unique_id = hashlib.md5(f"{doc_id}_{chunk_id}".encode()).hexdigest()
                 chunk_metadata = {
-                    'id': chunk_id,
+                    'id': unique_id,
                     'text': chunk_text,
                     'page': page_num,
-                    'doc_id': doc_metadata.get('doc_id'),
+                    'doc_id': doc_id,
                     'title': doc_metadata.get('title'),
                     'program': doc_metadata.get('program'),
                     'department': doc_metadata.get('department'),
@@ -350,7 +382,7 @@ class DocumentProcessor:
                 }
                 all_chunks.append(chunk_metadata)
         
-        logger.info(f"Created {len(all_chunks)} chunks from {len(pages)} pages/sections")
+        logger.debug(f"Created {len(all_chunks)} chunks from {len(pages)} pages/sections")
         return all_chunks
     
     def generate_doc_id(self, filename: str, metadata: Dict[str, Any]) -> str:

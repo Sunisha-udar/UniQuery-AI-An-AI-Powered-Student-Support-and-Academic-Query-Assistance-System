@@ -1,0 +1,39 @@
+# Render
+*.log
+.render/
+
+# Backend (not needed for frontend deployment)
+backend/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Development
+.env
+.env.local
+.env.*.local
+*.local
+
+# Testing
+coverage/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation (optional, keep if you want docs accessible)
+# *.md
+
+# Scripts
+scripts/
+test_*.py
+manage_*.py

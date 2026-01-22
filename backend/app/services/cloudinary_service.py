@@ -29,7 +29,7 @@ class CloudinaryService:
             secure=True
         )
         
-        logger.info("Cloudinary service initialized")
+        logger.debug("Cloudinary service initialized")
     
     def upload_pdf(
         self,

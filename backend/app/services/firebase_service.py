@@ -156,7 +156,10 @@ class FirebaseService:
             results = []
             for doc in docs:
                 data = doc.to_dict()
-                data['id'] = doc.id
+                data['doc_id'] = doc.id  # Use doc.id as doc_id
+                # Convert Firestore timestamp to ISO string
+                if 'uploaded_at' in data and data['uploaded_at']:
+                    data['uploaded_at'] = data['uploaded_at'].isoformat() if hasattr(data['uploaded_at'], 'isoformat') else str(data['uploaded_at'])
                 results.append(data)
             
             return results

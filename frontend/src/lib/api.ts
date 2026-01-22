@@ -76,7 +76,7 @@ class ApiClient {
   async uploadDocument(
     file: File,
     title: string,
-    category: string
+    category: string = 'general'
   ): Promise<UploadResponse> {
     const formData = new FormData();
     formData.append('file', file);

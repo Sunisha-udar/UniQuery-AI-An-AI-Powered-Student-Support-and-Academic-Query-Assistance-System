@@ -31,7 +31,7 @@ class QdrantService:
         self.client = QdrantClient(
             url=settings.qdrant_url,
             api_key=settings.qdrant_api_key,
-            timeout=30
+            timeout=120  # Increased for large document uploads
         )
         self.collection_name = settings.qdrant_collection_name
         self.embedding_model = SentenceTransformer(settings.embedding_model)
@@ -50,7 +50,7 @@ class QdrantService:
             collection_names = [col.name for col in collections]
             
             if self.collection_name in collection_names:
-                logger.info(f"Collection '{self.collection_name}' already exists")
+                logger.debug(f"Collection '{self.collection_name}' already exists")
                 # Ensure index exists on existing collection
                 self.ensure_doc_id_index()
                 return True
@@ -72,11 +72,19 @@ class QdrantService:
             )
             
             # Create additional indices for filtering
-            for field in ["program", "department", "semester", "category", "title", "version"]:
+            for field in ["program", "department", "category", "title"]:
                 self.client.create_payload_index(
                     collection_name=self.collection_name,
                     field_name=field,
                     field_schema="keyword"
+                )
+            
+            # Create integer indices
+            for field in ["semester", "version", "page"]:
+                self.client.create_payload_index(
+                    collection_name=self.collection_name,
+                    field_name=field,
+                    field_schema="integer"
                 )
             
             logger.info(f"Collection '{self.collection_name}' created successfully with doc_id index")
@@ -100,14 +108,21 @@ class QdrantService:
             )
             
             # Ensure other indices exist too
-            for field in ["program", "department", "semester", "category", "title", "version"]:
+            for field in ["program", "department", "category", "title"]:
                  self.client.create_payload_index(
                     collection_name=self.collection_name,
                     field_name=field,
                     field_schema="keyword"
                 )
+            
+            for field in ["semester", "version", "page"]:
+                self.client.create_payload_index(
+                    collection_name=self.collection_name,
+                    field_name=field,
+                    field_schema="integer"
+                )
                 
-            logger.info(f"Ensured indices exist on collection '{self.collection_name}'")
+            logger.debug(f"Ensured indices exist on collection '{self.collection_name}'")
             return True
         except Exception as e:
             # Index might already exist, which is fine
@@ -182,40 +197,87 @@ class QdrantService:
             True if successful
         """
         try:
+            if not chunks or not metadata:
+                logger.error("Empty chunks or metadata provided")
+                return False
+                
+            if len(chunks) != len(metadata):
+                logger.error(f"Chunks ({len(chunks)}) and metadata ({len(metadata)}) length mismatch")
+                return False
+            
+            logger.info(f"Starting to embed {len(chunks)} chunks...")
+            
             # Generate embeddings for all chunks
             embeddings = self.embed_batch(chunks)
+            
+            logger.debug(f"Generated {len(embeddings)} embeddings")
             
             # Create points for Qdrant
             points = []
             for idx, (chunk, embedding, meta) in enumerate(zip(chunks, embeddings, metadata)):
+                # Ensure all required fields are present and properly typed
+                point_id = meta.get("id", f"chunk_{idx}")
+                
+                # Clean and validate metadata
+                payload = {
+                    "text": str(chunk) if chunk else "",
+                    "program": str(meta.get("program", "Unknown")),
+                    "department": str(meta.get("department", "Unknown")),
+                    "semester": int(meta.get("semester", 0)),
+                    "category": str(meta.get("category", "Unknown")),
+                    "doc_id": str(meta.get("doc_id", "unknown")),
+                    "page": int(meta.get("page", 1)),
+                    "title": str(meta.get("title", "Untitled")),
+                    "version": int(meta.get("version", 1))
+                }
+                
                 point = PointStruct(
-                    id=meta.get("id", idx),
+                    id=point_id,
                     vector=embedding,
-                    payload={
-                        "text": chunk,
-                        "program": meta.get("program"),
-                        "department": meta.get("department"),
-                        "semester": meta.get("semester"),
-                        "category": meta.get("category"),
-                        "doc_id": meta.get("doc_id"),
-                        "page": meta.get("page"),
-                        "title": meta.get("title"),
-                        "version": meta.get("version")
-                    }
+                    payload=payload
                 )
                 points.append(point)
             
-            # Upload to Qdrant
-            self.client.upsert(
-                collection_name=self.collection_name,
-                points=points
-            )
+            logger.debug(f"Created {len(points)} points for insertion")
             
-            logger.info(f"Inserted {len(points)} chunks into Qdrant")
+            # Upload to Qdrant in batches with retry logic
+            batch_size = 100
+            max_retries = 3
+            
+            for i in range(0, len(points), batch_size):
+                batch = points[i:i + batch_size]
+                batch_num = i//batch_size + 1
+                total_batches = (len(points) + batch_size - 1)//batch_size
+                
+                # Retry logic for each batch
+                for attempt in range(max_retries):
+                    try:
+                        logger.debug(f"Inserting batch {batch_num}/{total_batches} ({len(batch)} points) - Attempt {attempt + 1}/{max_retries}")
+                        
+                        self.client.upsert(
+                            collection_name=self.collection_name,
+                            points=batch
+                        )
+                        logger.info(f"✓ Batch {batch_num}/{total_batches} uploaded successfully")
+                        break  # Success, exit retry loop
+                        
+                    except Exception as batch_error:
+                        if attempt < max_retries - 1:
+                            import time
+                            wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                            logger.warning(f"Batch {batch_num} failed (attempt {attempt + 1}), retrying in {wait_time}s... Error: {batch_error}")
+                            time.sleep(wait_time)
+                        else:
+                            logger.error(f"Batch {batch_num} failed after {max_retries} attempts: {batch_error}")
+                            raise  # Re-raise on final attempt
+            
+            logger.info(f"Successfully inserted {len(points)} chunks into Qdrant")
             return True
             
         except Exception as e:
             logger.error(f"Error inserting documents: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return False
     
     def search(
@@ -224,11 +286,11 @@ class QdrantService:
         limit: int = 5,
         program: Optional[str] = None,
         department: Optional[str] = None,
-        semester: Optional[int] = None,
-        category: Optional[str] = None
+        semester: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
         Semantic search with optional metadata filtering.
+        Documents with "ALL" in metadata fields match any filter.
         
         Args:
             query: Natural language query
@@ -236,7 +298,6 @@ class QdrantService:
             program: Filter by academic program
             department: Filter by department
             semester: Filter by semester
-            category: Filter by document category
             
         Returns:
             List of search results with text and metadata
@@ -245,34 +306,45 @@ class QdrantService:
             # Embed the query
             query_vector = self.embed_text(query)
             
-            # Build filter conditions
-            filter_conditions = []
+            # Build filter conditions - "ALL" acts as wildcard using should (OR)
+            must_conditions = []
             
             if program and program != "All":
-                filter_conditions.append(
-                    FieldCondition(key="program", match=MatchValue(value=program))
+                # Match either the specific program OR "All"
+                must_conditions.append(
+                    Filter(
+                        should=[
+                            FieldCondition(key="program", match=MatchValue(value=program)),
+                            FieldCondition(key="program", match=MatchValue(value="All"))
+                        ]
+                    )
                 )
             
             if department and department != "All":
-                filter_conditions.append(
-                    FieldCondition(key="department", match=MatchValue(value=department))
+                must_conditions.append(
+                    Filter(
+                        should=[
+                            FieldCondition(key="department", match=MatchValue(value=department)),
+                            FieldCondition(key="department", match=MatchValue(value="All"))
+                        ]
+                    )
                 )
             
             if semester and semester != 0:
-                filter_conditions.append(
-                    FieldCondition(key="semester", match=MatchValue(value=semester))
-                )
-                
-            if category and category != "all":
-                filter_conditions.append(
-                    FieldCondition(key="category", match=MatchValue(value=category))
+                must_conditions.append(
+                    Filter(
+                        should=[
+                            FieldCondition(key="semester", match=MatchValue(value=semester)),
+                            FieldCondition(key="semester", match=MatchValue(value=0))
+                        ]
+                    )
                 )
             
             # Create Qdrant filter if we have conditions
             qdrant_filter = None
-            if filter_conditions:
-                qdrant_filter = Filter(must=filter_conditions)
-                logger.info(f"Applying filters: program={program}, dept={department}, sem={semester}, cat={category}")
+            if must_conditions:
+                qdrant_filter = Filter(must=must_conditions)
+                logger.info(f"Applying filters: program={program}, dept={department}, sem={semester}")
             
             # Perform search with filters
             response = self.client.query_points(

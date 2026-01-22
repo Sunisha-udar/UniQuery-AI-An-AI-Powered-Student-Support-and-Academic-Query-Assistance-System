@@ -1,5 +1,5 @@
 import { DashboardLayout } from '../../components/layout/DashboardLayout'
-import { Card, CardContent, CardHeader } from '../../components/ui/Card'
+import { Card, CardContent } from '../../components/ui/Card'
 import { BarChart3 } from 'lucide-react'
 
 export function AdminAnalytics() {
