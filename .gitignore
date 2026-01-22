@@ -44,3 +44,4 @@ frontend/.env
 # Project specific
 
 serviceAccountKey.json
+.vercel
