@@ -12,8 +12,10 @@ import {
     MessageSquarePlus,
     Download,
     AlertCircle,
-    PanelLeft
+    PanelLeft,
+    Filter
 } from 'lucide-react'
+import { Select } from '../../components/ui/Select'
 
 interface Message {
     id: string
@@ -37,6 +39,27 @@ const EXAMPLE_QUESTIONS = [
 
 const generateId = () => Math.random().toString(36).substr(2, 9)
 
+const PROGRAMS = [
+    { value: 'B.Tech', label: 'B.Tech' },
+    { value: 'M.Tech', label: 'M.Tech' },
+    { value: 'MBA', label: 'MBA' },
+    { value: 'BCA', label: 'BCA' },
+    { value: 'MCA', label: 'MCA' }
+]
+
+const DEPARTMENTS = [
+    { value: 'CSE', label: 'Computer Science' },
+    { value: 'ECE', label: 'Electronics & Comm.' },
+    { value: 'MECH', label: 'Mechanical' },
+    { value: 'CIVIL', label: 'Civil' },
+    { value: 'EEE', label: 'Electrical' }
+]
+
+const SEMESTERS = Array.from({ length: 8 }, (_, i) => ({
+    value: String(i + 1),
+    label: `Semester ${i + 1}`
+}))
+
 export function StudentDashboard() {
     const { user } = useAuth()
     const [query, setQuery] = useState('')
@@ -50,6 +73,15 @@ export function StudentDashboard() {
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
     const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false)
     const [chatSessions, setChatSessions] = useState<any[]>([])
+
+    // Filters State
+    const [filters, setFilters] = useState({
+        program: '',
+        department: '',
+        semester: ''
+    })
+    const [showFilters, setShowFilters] = useState(false)
+
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const menuRef = useRef<HTMLDivElement>(null)
     const hasAddedToMessages = useRef(false)
@@ -89,7 +121,19 @@ export function StudentDashboard() {
         }
 
         initSession()
+        initSession()
     }, [user?.uid])
+
+    // Initialize filters from user profile
+    useEffect(() => {
+        if (user) {
+            setFilters({
+                program: user.program || '',
+                department: user.department || '',
+                semester: user.semester ? String(user.semester) : ''
+            })
+        }
+    }, [user])
 
     useEffect(() => {
         scrollToBottom()
@@ -268,9 +312,12 @@ export function StudentDashboard() {
         }
 
         try {
-            // Call real API - search all documents without filters
+            // Call real API - search with filters
             const result = await api.queryDocuments({
-                question: newMessage.text
+                question: newMessage.text,
+                program: filters.program || undefined,
+                department: filters.department || undefined,
+                semester: filters.semester ? Number(filters.semester) : undefined
             })
 
             setIsTyping(false)
@@ -399,6 +446,54 @@ export function StudentDashboard() {
                                 )}
                             </div>
                         </div>
+                    </div>
+
+
+                    {/* Filters Bar */}
+                    <div className="bg-white/50 backdrop-blur-sm border-b border-gray-200/50 px-4 py-2">
+                        <div className="flex items-center gap-2 mb-2">
+                            <button
+                                onClick={() => setShowFilters(!showFilters)}
+                                className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                            >
+                                <Filter className="w-3.5 h-3.5" />
+                                {showFilters ? 'Hide Context Filters' : 'Show Context Filters'}
+                            </button>
+                            {!showFilters && (filters.program || filters.department || filters.semester) && (
+                                <span className="text-xs text-gray-400">
+                                    Active: {[filters.program, filters.department, filters.semester ? `Sem ${filters.semester}` : ''].filter(Boolean).join(' • ')}
+                                </span>
+                            )}
+                        </div>
+
+                        {showFilters && (
+                            <div className="grid grid-cols-3 gap-3 animate-fadeIn mb-2">
+                                <Select
+                                    label="Program"
+                                    options={PROGRAMS}
+                                    value={filters.program}
+                                    onChange={(e) => setFilters({ ...filters, program: e.target.value })}
+                                    placeholder="All Programs"
+                                    className="bg-white h-8 text-sm"
+                                />
+                                <Select
+                                    label="Department"
+                                    options={DEPARTMENTS}
+                                    value={filters.department}
+                                    onChange={(e) => setFilters({ ...filters, department: e.target.value })}
+                                    placeholder="All Departments"
+                                    className="bg-white h-8 text-sm"
+                                />
+                                <Select
+                                    label="Semester"
+                                    options={SEMESTERS}
+                                    value={filters.semester}
+                                    onChange={(e) => setFilters({ ...filters, semester: e.target.value })}
+                                    placeholder="All Semesters"
+                                    className="bg-white h-8 text-sm"
+                                />
+                            </div>
+                        )}
                     </div>
 
                     {/* Messages Area - Centered */}
