@@ -57,9 +57,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
             if (firebaseUser) {
                 // Fetch user role from Firestore
                 try {
+                    console.log('[Auth] Fetching user data for:', firebaseUser.uid)
                     const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid))
                     if (userDoc.exists()) {
                         const userData = userDoc.data()
+                        console.log('[Auth] Firestore user data:', userData)
+                        console.log('[Auth] User role from Firestore:', userData.role)
                         setUser({
                             uid: firebaseUser.uid,
                             email: firebaseUser.email,
@@ -73,6 +76,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                             semester: userData.semester,
                         })
                     } else {
+                        console.error('[Auth] User document does not exist in Firestore!')
                         // User exists in Auth but not in Firestore (edge case)
                         setUser({
                             uid: firebaseUser.uid,
@@ -80,7 +84,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
                             role: 'student',
                         })
                     }
-                } catch {
+                } catch (error) {
+                    console.error('[Auth] Error fetching user from Firestore:', error)
                     // If Firestore fails, default to student role
                     setUser({
                         uid: firebaseUser.uid,
@@ -98,27 +103,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }, [])
 
     const login = async (email: string, password: string) => {
+        console.log('[Auth] Starting login...')
         await signInWithEmailAndPassword(auth, email, password)
-        // Force refresh user data after login
-        const firebaseUser = auth.currentUser
-        if (firebaseUser) {
-            const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid))
-            if (userDoc.exists()) {
-                const userData = userDoc.data()
-                setUser({
-                    uid: firebaseUser.uid,
-                    email: firebaseUser.email,
-                    role: userData.role || 'student',
-                    displayName: userData.displayName,
-                    phoneNumber: userData.phoneNumber,
-                    studentId: userData.studentId,
-                    bio: userData.bio,
-                    program: userData.program,
-                    department: userData.department,
-                    semester: userData.semester,
-                })
-            }
-        }
+        console.log('[Auth] Firebase auth successful, onAuthStateChanged will handle user data fetch')
+        // onAuthStateChanged will automatically fetch and update user data
     }
 
     const signup = async (email: string, password: string, role: UserRole, profile?: Partial<User>) => {
