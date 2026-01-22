@@ -1,7 +1,7 @@
 {
     "version": 2,
     "framework": "vite",
-    "installCommand": "cd frontend && npm install --include=optional",
+    "installCommand": "cd frontend && npm ci --include=optional || npm install --include=optional",
     "buildCommand": "cd frontend && npm run build",
     "outputDirectory": "frontend/dist",
     "rewrites": [
