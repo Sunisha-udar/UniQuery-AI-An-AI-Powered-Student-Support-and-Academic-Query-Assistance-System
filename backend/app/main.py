@@ -90,9 +90,21 @@ async def root():
 
 
 @app.get("/health")
+@app.get("/api/health")
 async def health_check():
     """
-    Health check endpoint that verifies all services
+    Health check endpoint - returns immediately without blocking on Qdrant
+    """
+    return {
+        "status": "healthy",
+        "message": "Server is running"
+    }
+
+
+@app.get("/api/health/detailed")
+async def detailed_health_check():
+    """
+    Detailed health check that verifies all services (may be slow)
     """
     health_status = {
         "status": "healthy",

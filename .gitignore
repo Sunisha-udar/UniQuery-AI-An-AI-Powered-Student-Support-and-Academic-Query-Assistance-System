@@ -36,9 +36,8 @@ backend/**/__pycache__
 .env
 .env.*
 !.env.example
-backend/.env
-frontend/.env
 /.agent
+.amazonq
 
 
 # Project specific

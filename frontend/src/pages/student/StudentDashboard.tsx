@@ -3,11 +3,8 @@ import { DashboardLayout } from '../../components/layout/DashboardLayout'
 import { useAuth } from '../../contexts/AuthContext'
 import { api, type Citation } from '../../lib/api'
 import { createChatSession, addMessageToSession, loadChatSessions, deleteChatSession, loadChatSession, updateSessionTitle } from '../../lib/chatHistory'
-
 import { PlaceholdersAndVanishInput } from '../../components/ui/placeholders-and-vanish-input'
 import {
-    ThumbsUp,
-    ThumbsDown,
     MoreVertical,
     Trash2,
     MessageSquarePlus,
@@ -22,12 +19,9 @@ interface Message {
     id: string
     type: 'user' | 'assistant'
     text: string
-    source?: string
     citations?: Citation[]
     confidence?: number
 }
-
-const INITIAL_MESSAGES: Message[] = []
 
 const EXAMPLE_QUESTIONS = [
     'What is the minimum attendance required?',
@@ -37,8 +31,6 @@ const EXAMPLE_QUESTIONS = [
     'What is the grading policy?',
     'When are the semester breaks?'
 ]
-
-const generateId = () => Math.random().toString(36).substr(2, 9)
 
 const PROGRAMS = [
     { value: 'B.Tech', label: 'B.Tech' },
@@ -64,9 +56,9 @@ const SEMESTERS = Array.from({ length: 8 }, (_, i) => ({
 export function StudentDashboard() {
     const { user } = useAuth()
     const [query, setQuery] = useState('')
-    const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES)
-    const [activeAnswer, setActiveAnswer] = useState<Message | null>(null)
+    const [messages, setMessages] = useState<Message[]>([])
     const [isTyping, setIsTyping] = useState(false)
+    const [streamingMessage, setStreamingMessage] = useState<Message | null>(null)
     const [displayedText, setDisplayedText] = useState('')
     const [showMenu, setShowMenu] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -74,61 +66,64 @@ export function StudentDashboard() {
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
     const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false)
     const [chatSessions, setChatSessions] = useState<any[]>([])
-
-    // Track if title has been set (to update only once per session)
-    const hasTitleBeenSet = useRef(false)
-
-    // Filters State
-    const [filters, setFilters] = useState({
-        program: '',
-        department: '',
-        semester: ''
-    })
+    const [filters, setFilters] = useState({ program: '', department: '', semester: '' })
     const [showFilters, setShowFilters] = useState(false)
 
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const menuRef = useRef<HTMLDivElement>(null)
-    const hasAddedToMessages = useRef(false)
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }
-
-    // Load or create chat session on mount
     useEffect(() => {
-        const initSession = async () => {
-            if (!user?.uid) return
+        if (!streamingMessage) return
 
+        let index = 0
+        const text = streamingMessage.text
+        setDisplayedText('')
+
+        const interval = setInterval(() => {
+            if (index < text.length) {
+                setDisplayedText(text.slice(0, index + 1))
+                index++
+            } else {
+                clearInterval(interval)
+                setMessages(prev => [...prev, streamingMessage])
+                setStreamingMessage(null)
+                setDisplayedText('')
+            }
+        }, 15)
+
+        return () => clearInterval(interval)
+    }, [streamingMessage])
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }, [messages, displayedText])
+
+    useEffect(() => {
+        if (!user?.uid) {
+            setIsLoadingHistory(false)
+            return
+        }
+
+        const init = async () => {
             try {
-                setIsLoadingHistory(true)
-                console.log('[Dashboard] Initializing session...')
-                // Load existing sessions
                 const sessions = await loadChatSessions(user.uid)
                 setChatSessions(sessions)
-
                 if (sessions.length > 0) {
-                    // Load the most recent session
-                    const mostRecent = sessions[0]
-                    setCurrentSessionId(mostRecent.id)
-                    setMessages(mostRecent.messages)
-                    console.log('[Dashboard] Loaded existing session:', mostRecent.id)
+                    setCurrentSessionId(sessions[0].id)
+                    setMessages(sessions[0].messages || [])
                 } else {
-                    // Create a new session
-                    const newSessionId = await createChatSession(user.uid)
-                    setCurrentSessionId(newSessionId)
-                    console.log('[Dashboard] Created new session:', newSessionId)
+                    const newId = await createChatSession(user.uid)
+                    setCurrentSessionId(newId)
                 }
             } catch (err) {
-                console.error('[Dashboard] Failed to initialize session:', err)
+                console.error('Init error:', err)
             } finally {
                 setIsLoadingHistory(false)
             }
         }
-
-        initSession()
+        init()
     }, [user?.uid])
 
-    // Initialize filters from user profile
     useEffect(() => {
         if (user) {
             setFilters({
@@ -140,117 +135,28 @@ export function StudentDashboard() {
     }, [user])
 
     useEffect(() => {
-        scrollToBottom()
-    }, [messages, isTyping, displayedText])
-
-    useEffect(() => {
-        if (activeAnswer && activeAnswer.text) {
-            let currentIndex = 0
-            setDisplayedText('')
-            const text = activeAnswer.text
-            hasAddedToMessages.current = false
-
-            const interval = setInterval(() => {
-                if (currentIndex < text.length) {
-                    setDisplayedText(text.substring(0, currentIndex + 1))
-                    currentIndex++
-                } else {
-                    clearInterval(interval)
-                    // Add to messages array when typing is complete
-                    if (!hasAddedToMessages.current && user?.uid && currentSessionId) {
-                        hasAddedToMessages.current = true
-                        setMessages(prev => [...prev, activeAnswer])
-
-                        // Save to session
-                        console.log('Attempting to save assistant message to session')
-                        addMessageToSession(
-                            currentSessionId,
-                            'assistant',
-                            activeAnswer.text,
-                            activeAnswer.citations,
-                            activeAnswer.confidence
-                        ).then(async () => {
-                            console.log('Assistant message saved to session successfully')
-
-                            // Update chat title if it's the first exchange
-                            if (!hasTitleBeenSet.current && messages.length > 0) {
-                                hasTitleBeenSet.current = true
-                                const firstUserMessage = messages.find(m => m.type === 'user')
-                                if (firstUserMessage) {
-                                    const newTitle = generateChatTitle(firstUserMessage.text)
-                                    try {
-                                        await updateSessionTitle(currentSessionId, newTitle)
-                                        // Refresh chat sessions to show updated title
-                                        const sessions = await loadChatSessions(user.uid)
-                                        setChatSessions(sessions)
-                                        console.log('Chat title updated to:', newTitle)
-                                    } catch (err) {
-                                        console.error('Failed to update chat title:', err)
-                                    }
-                                }
-                            }
-                        }).catch(err => {
-                            console.error('Failed to save assistant message:', err)
-                        })
-
-                        // Clear active answer after adding to messages
-                        setTimeout(() => setActiveAnswer(null), 100)
-                    }
-                }
-            }, 20) // Adjust speed here (lower = faster)
-
-            return () => clearInterval(interval)
-        }
-    }, [activeAnswer, user?.uid])
-
-    useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
                 setShowMenu(false)
             }
         }
-
         document.addEventListener('mousedown', handleClickOutside)
         return () => document.removeEventListener('mousedown', handleClickOutside)
     }, [])
 
-    const handleClearHistory = async () => {
-        if (!user?.uid || !currentSessionId) return
-
-        try {
-            await deleteChatSession(currentSessionId)
-            // Create a new session
-            const newSessionId = await createChatSession(user.uid)
-            setCurrentSessionId(newSessionId)
-            setMessages([])
-            setActiveAnswer(null)
-            setShowMenu(false)
-            // Refresh sessions list
-            const sessions = await loadChatSessions(user.uid)
-            setChatSessions(sessions)
-        } catch (err) {
-            console.error('Failed to clear chat history:', err)
-            setError('Failed to clear chat history')
-        }
-    }
-
     const handleStartNewChat = async () => {
         if (!user?.uid) return
-
         try {
-            const newSessionId = await createChatSession(user.uid)
-            setCurrentSessionId(newSessionId)
-            setMessages([])
-            setActiveAnswer(null)
-            setQuery('')
-            setShowMenu(false)
-            hasTitleBeenSet.current = false // Reset for new session
-            // Refresh sessions list
+            const newId = await createChatSession(user.uid)
             const sessions = await loadChatSessions(user.uid)
             setChatSessions(sessions)
+            setCurrentSessionId(newId)
+            setMessages([])
+            setQuery('')
+            setError(null)
+            setShowMenu(false)
         } catch (err) {
-            console.error('Failed to start new chat:', err)
-            setError('Failed to start new chat')
+            console.error('New chat error:', err)
         }
     }
 
@@ -259,48 +165,54 @@ export function StudentDashboard() {
             const session = await loadChatSession(sessionId)
             if (session) {
                 setCurrentSessionId(session.id)
-                setMessages(session.messages)
-                setActiveAnswer(null)
+                setMessages(session.messages || [])
                 setQuery('')
                 setIsChatHistoryOpen(false)
-                // Check if session already has a meaningful title (not "New Chat")
-                hasTitleBeenSet.current = session.title !== 'New Chat'
             }
         } catch (err) {
-            console.error('Failed to load session:', err)
-            setError('Failed to load session')
+            console.error('Load session error:', err)
         }
     }
 
     const handleDeleteSession = async (sessionId: string) => {
         if (!user?.uid) return
-
         try {
             await deleteChatSession(sessionId)
-            // Refresh sessions list
             const sessions = await loadChatSessions(user.uid)
             setChatSessions(sessions)
-
-            // If we deleted the current session, create a new one
             if (sessionId === currentSessionId) {
-                const newSessionId = await createChatSession(user.uid)
-                setCurrentSessionId(newSessionId)
+                const newId = await createChatSession(user.uid)
+                setCurrentSessionId(newId)
                 setMessages([])
-                setActiveAnswer(null)
             }
         } catch (err) {
-            console.error('Failed to delete session:', err)
-            setError('Failed to delete session')
+            console.error('Delete error:', err)
+        }
+    }
+
+    const handleClearHistory = async () => {
+        if (!user?.uid || !currentSessionId) return
+        try {
+            await deleteChatSession(currentSessionId)
+            const newId = await createChatSession(user.uid)
+            const sessions = await loadChatSessions(user.uid)
+            setChatSessions(sessions)
+            setCurrentSessionId(newId)
+            setMessages([])
+            setError(null)
+            setShowMenu(false)
+        } catch (err) {
+            console.error('Clear error:', err)
         }
     }
 
     const handleExportChat = () => {
-        const chatContent = messages.map(msg => `${msg.type === 'user' ? 'You' : 'AI'}: ${msg.text}`).join('\n\n')
-        const blob = new Blob([chatContent], { type: 'text/plain' })
+        const content = messages.map(m => `${m.type === 'user' ? 'You' : 'AI'}: ${m.text}`).join('\n\n')
+        const blob = new Blob([content], { type: 'text/plain' })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `chat-history-${new Date().toISOString().split('T')[0]}.txt`
+        a.download = `chat-${new Date().toISOString().split('T')[0]}.txt`
         a.click()
         URL.revokeObjectURL(url)
         setShowMenu(false)
@@ -308,55 +220,58 @@ export function StudentDashboard() {
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
-        if (!query.trim() || !user?.uid) return
+        if (!query.trim() || !user?.uid || isTyping) return
 
-        // Create session if doesn't exist
         let sessionId = currentSessionId
         if (!sessionId) {
-            sessionId = await createChatSession(user.uid, query)
+            sessionId = await createChatSession(user.uid)
             setCurrentSessionId(sessionId)
         }
 
-        const newMessage: Message = {
-            id: generateId(),
+        const userMsg: Message = {
+            id: Date.now().toString(),
             type: 'user',
-            text: query,
+            text: query
         }
-        setMessages(prev => [...prev, newMessage])
-        setActiveAnswer(null)
+
+        setMessages(prev => [...prev, userMsg])
         setIsTyping(true)
         setError(null)
+        const currentQuery = query
         setQuery('')
 
-        // Save user message to session
         try {
-            await addMessageToSession(sessionId, 'user', newMessage.text)
-            console.log('User message saved to session')
-        } catch (err) {
-            console.error('Failed to save user message:', err)
-        }
-
-        try {
-            // Call real API - search with filters
+            await addMessageToSession(sessionId, 'user', userMsg.text)
+            
             const result = await api.queryDocuments({
-                question: newMessage.text,
+                question: currentQuery,
                 program: filters.program || undefined,
                 department: filters.department || undefined,
                 semester: filters.semester ? Number(filters.semester) : undefined
             })
 
-            setIsTyping(false)
-            setActiveAnswer({
-                id: 'answer-' + Date.now(),
+            const assistantMsg: Message = {
+                id: (Date.now() + 1).toString(),
                 type: 'assistant',
                 text: result.answer,
                 citations: result.citations,
                 confidence: result.confidence
-            })
-        } catch (err) {
+            }
+
             setIsTyping(false)
+            setStreamingMessage(assistantMsg)
+            await addMessageToSession(sessionId, 'assistant', assistantMsg.text, assistantMsg.citations, assistantMsg.confidence)
+            
+            if (messages.length === 0) {
+                await updateSessionTitle(sessionId, currentQuery.slice(0, 30) + (currentQuery.length > 30 ? '...' : ''))
+                const sessions = await loadChatSessions(user.uid)
+                setChatSessions(sessions)
+            }
+        } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to get answer')
             console.error('Query error:', err)
+        } finally {
+            setIsTyping(false)
         }
     }
 
@@ -532,7 +447,7 @@ export function StudentDashboard() {
                                 </div>
                             </div>
                         )}
-                        {!isLoadingHistory && messages.length === 0 && !activeAnswer && (
+                        {!isLoadingHistory && messages.length === 0 && (
                             <div className="flex items-center justify-center h-full">
                                 <div className="text-center space-y-3 px-4 max-w-xl">
                                     <h1 className="text-3xl font-semibold text-text">Ask UniQuery AI</h1>
@@ -541,19 +456,17 @@ export function StudentDashboard() {
                             </div>
                         )}
 
-                        {messages.length > 0 && (<>
+                        {messages.length > 0 && (
                             <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
                                 {messages.map((msg) => (
                                     <div key={msg.id} className={`flex animate-fadeIn ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                                         <div className={`${msg.type === 'user' ? 'max-w-[85%]' : 'max-w-full'}`}>
-                                            {/* Message Bubble */}
                                             <div className={`${msg.type === 'user'
                                                 ? 'bg-primary text-white rounded-2xl rounded-tr-sm px-4 py-3'
                                                 : 'text-text'}`}>
                                                 <p className="text-[15px] leading-relaxed">{msg.text}</p>
                                             </div>
 
-                                            {/* Citations - Horizontal Scrollable Chips */}
                                             {msg.type === 'assistant' && msg.citations && msg.citations.length > 0 && (
                                                 <div className="mt-3 overflow-x-auto scrollbar-hide">
                                                     <div className="flex gap-2 pb-1">
@@ -568,14 +481,10 @@ export function StudentDashboard() {
                                                 </div>
                                             )}
 
-                                            {/* Confidence - Minimal */}
                                             {msg.type === 'assistant' && msg.confidence !== undefined && (
                                                 <div className="mt-2 flex items-center gap-2">
                                                     <div className="w-16 h-1 bg-border rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-text-muted rounded-full"
-                                                            style={{ width: `${msg.confidence * 100}%` }}
-                                                        ></div>
+                                                        <div className="h-full bg-text-muted rounded-full" style={{ width: `${msg.confidence * 100}%` }}></div>
                                                     </div>
                                                     <span className="text-xs text-text-light">{(msg.confidence * 100).toFixed(0)}%</span>
                                                 </div>
@@ -584,7 +493,19 @@ export function StudentDashboard() {
                                     </div>
                                 ))}
 
-                                {/* Typing Indicator - Minimal 3-dot */}
+                                {streamingMessage && (
+                                    <div className="flex animate-fadeIn justify-start">
+                                        <div className="max-w-full">
+                                            <div className="text-text">
+                                                <p className="text-[15px] leading-relaxed">
+                                                    {displayedText}
+                                                    <span className="inline-block w-0.5 h-4 bg-text-muted ml-0.5 animate-pulse"></span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {isTyping && (
                                     <div className="flex justify-start animate-fadeIn">
                                         <div className="flex items-center gap-1 py-2">
@@ -595,70 +516,7 @@ export function StudentDashboard() {
                                     </div>
                                 )}
 
-                                {/* AI Answer - Streaming */}
-                                {activeAnswer && !isTyping && (
-                                    <div className="flex justify-start animate-fadeIn">
-                                        <div className="max-w-full">
-                                            <div className="text-text">
-                                                <p className="text-[15px] leading-relaxed">
-                                                    {displayedText}
-                                                    {displayedText.length < activeAnswer.text.length && (
-                                                        <span className="inline-block w-0.5 h-4 bg-text-muted ml-0.5 animate-pulse"></span>
-                                                    )}
-                                                </p>
-                                            </div>
-
-                                            {/* Citations - After typing complete */}
-                                            {activeAnswer.citations && activeAnswer.citations.length > 0 && displayedText.length === activeAnswer.text.length && (
-                                                <div className="mt-3 overflow-x-auto scrollbar-hide animate-fadeIn">
-                                                    <div className="flex gap-2 pb-1">
-                                                        {activeAnswer.citations.map((citation, idx) => (
-                                                            <div key={idx} className="flex-shrink-0 text-xs bg-surface border border-border rounded-full px-3 py-1.5 text-text-muted hover:border-text-light transition-colors cursor-pointer">
-                                                                <span className="font-medium text-text">{citation.title}</span>
-                                                                <span className="text-text-light mx-1.5">·</span>
-                                                                <span>p.{citation.page}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Confidence */}
-                                            {activeAnswer.confidence !== undefined && displayedText.length === activeAnswer.text.length && (
-                                                <div className="mt-2 flex items-center gap-2 animate-fadeIn">
-                                                    <div className="w-16 h-1 bg-border rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-text-muted rounded-full"
-                                                            style={{ width: `${activeAnswer.confidence * 100}%` }}
-                                                        ></div>
-                                                    </div>
-                                                    <span className="text-xs text-text-light">{(activeAnswer.confidence * 100).toFixed(0)}%</span>
-                                                </div>
-                                            )}
-
-                                            {/* Feedback - After typing complete */}
-                                            {displayedText.length === activeAnswer.text.length && (
-                                                <div className="flex items-center gap-1 mt-3 animate-fadeIn">
-                                                    <button
-                                                        className="p-1.5 rounded-lg hover:bg-background text-text-light hover:text-text transition-colors"
-                                                        aria-label="Mark answer as helpful"
-                                                    >
-                                                        <ThumbsUp className="w-3.5 h-3.5" />
-                                                    </button>
-                                                    <button
-                                                        className="p-1.5 rounded-lg hover:bg-background text-text-light hover:text-text transition-colors"
-                                                        aria-label="Mark answer as not helpful"
-                                                    >
-                                                        <ThumbsDown className="w-3.5 h-3.5" />
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Error Message */}
-                                {error && !isTyping && (
+                                {error && (
                                     <div className="flex justify-start animate-fadeIn">
                                         <div className="flex items-center gap-2 text-red-600 bg-red-50 rounded-lg px-3 py-2">
                                             <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -667,9 +525,8 @@ export function StudentDashboard() {
                                     </div>
                                 )}
                             </div>
-                            <div ref={messagesEndRef} />
-                        </>
                         )}
+                        <div ref={messagesEndRef} />
                     </div>
 
                     {/* Input - Floating at Bottom with Blur */}
@@ -684,10 +541,7 @@ export function StudentDashboard() {
                     </div>
                 </div>
             </div>
-        </DashboardLayout >
+        </DashboardLayout>
     )
-}
-function generateChatTitle(text: string) {
-    return text.slice(0, 30) + (text.length > 30 ? '...' : '')
 }
 

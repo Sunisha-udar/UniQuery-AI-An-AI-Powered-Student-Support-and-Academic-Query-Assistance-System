@@ -75,29 +75,54 @@ class VoyageEmbeddingService:
             if show_progress or len(texts) > MAX_BATCH_SIZE:
                 logger.info(f"Embedding batch {batch_num}/{total_batches} ({len(batch)} texts)")
             
-            try:
-                with httpx.Client(timeout=60.0) as client:
-                    response = client.post(
-                        VOYAGE_API_URL,
-                        headers=self.headers,
-                        json={
-                            "model": self.model,
-                            "input": batch,
-                            "input_type": "document"  # Use "query" for search queries
-                        }
-                    )
-                    response.raise_for_status()
-                    
-                    data = response.json()
-                    batch_embeddings = [item["embedding"] for item in data["data"]]
-                    all_embeddings.extend(batch_embeddings)
-                    
-            except httpx.HTTPStatusError as e:
-                logger.error(f"Voyage AI API error: {e.response.status_code} - {e.response.text}")
-                raise
-            except Exception as e:
-                logger.error(f"Error calling Voyage AI: {e}")
-                raise
+            # Retry logic for rate limiting
+            max_retries = 5
+            for attempt in range(max_retries):
+                try:
+                    with httpx.Client(timeout=60.0) as client:
+                        response = client.post(
+                            VOYAGE_API_URL,
+                            headers=self.headers,
+                            json={
+                                "model": self.model,
+                                "input": batch,
+                                "input_type": "document"  # Use "query" for search queries
+                            }
+                        )
+                        response.raise_for_status()
+                        
+                        data = response.json()
+                        batch_embeddings = [item["embedding"] for item in data["data"]]
+                        all_embeddings.extend(batch_embeddings)
+                        
+                        # Rate limiting: Wait 25 seconds after each request to stay under 3 RPM
+                        # Only wait if we have more batches to process
+                        if batch_idx + MAX_BATCH_SIZE < len(texts):
+                            import time
+                            logger.info("⏳ Waiting 25s to respect rate limits...")
+                            time.sleep(25)
+                        
+                        break  # Success, exit retry loop
+                        
+                except httpx.HTTPStatusError as e:
+                    if e.response.status_code == 429:
+                        # Rate limit hit
+                        if attempt < max_retries - 1:
+                            # Exponential backoff: 25s, 50s, 100s
+                            wait_time = min(25 * (2 ** attempt), 120)
+                            logger.warning(f"⚠️  Rate limit hit (429). Waiting {wait_time}s before retry {attempt + 1}/{max_retries}...")
+                            import time
+                            time.sleep(wait_time)
+                        else:
+                            logger.error(f"❌ Rate limit exceeded after {max_retries} attempts")
+                            logger.error(f"Voyage AI API error: {e.response.status_code} - {e.response.text}")
+                            raise
+                    else:
+                        logger.error(f"Voyage AI API error: {e.response.status_code} - {e.response.text}")
+                        raise
+                except Exception as e:
+                    logger.error(f"Error calling Voyage AI: {e}")
+                    raise
         
         return all_embeddings
     

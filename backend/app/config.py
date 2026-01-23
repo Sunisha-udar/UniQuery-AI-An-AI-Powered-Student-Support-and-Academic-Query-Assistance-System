@@ -10,9 +10,9 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-# Get the backend directory path
-BACKEND_DIR = Path(__file__).parent.parent
-ENV_FILE = BACKEND_DIR / ".env"
+# Get the project root directory (parent of backend)
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+ENV_FILE = PROJECT_ROOT / ".env"
 
 
 class Settings(BaseSettings):
@@ -40,10 +40,15 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"
     
-    # Cloudinary Configuration
+    # Cloudinary Configuration (legacy - keeping for migration)
     cloudinary_cloud_name: str = ""
     cloudinary_api_key: str = ""
     cloudinary_api_secret: str = ""
+    
+    # Supabase Configuration
+    supabase_url: str = ""
+    supabase_anon_key: str = ""
+    supabase_service_role_key: str = ""
     
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),

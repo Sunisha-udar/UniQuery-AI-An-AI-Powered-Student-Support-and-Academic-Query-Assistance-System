@@ -1,5 +1,6 @@
 """
 Documents router - Document management endpoints
+Updated to use Supabase Storage and Database instead of Firebase/Cloudinary
 """
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
@@ -11,9 +12,9 @@ import logging
 
 from app.services.pdf_service import get_pdf_service
 from app.services.qdrant_service import get_qdrant_service
-from app.services.cloudinary_service import get_cloudinary_service
+from app.services.supabase_storage_service import get_supabase_storage_service
 from app.services.document_processor import get_document_processor
-from app.services.firebase_service import get_firebase_service
+from app.services.supabase_db_service import get_supabase_db_service
 from app.services.name_extractor import get_name_extractor
 
 router = APIRouter()
@@ -29,7 +30,7 @@ class Document(BaseModel):
     version: int
     uploaded_at: str
     chunk_count: int
-    pdf_url: Optional[str] = None  # Cloudinary URL
+    pdf_url: Optional[str] = None
 
 
 @router.get("/", response_model=List[Document])
@@ -39,13 +40,13 @@ async def list_documents(
     department: Optional[str] = None
 ):
     """
-    List all documents with optional filtering from Firestore.
+    List all documents with optional filtering from Supabase.
     """
     try:
-        firebase_service = get_firebase_service()
+        db_service = get_supabase_db_service()
         
-        # Get documents from Firestore (fast)
-        docs = firebase_service.list_documents(category, program, department)
+        # Get documents from Supabase
+        docs = db_service.list_documents(category, program, department)
         
         # Convert to response format
         documents = [
@@ -73,20 +74,20 @@ async def list_documents(
 @router.get("/{doc_id}", response_model=Document)
 async def get_document(doc_id: str):
     """
-    Get a specific document by ID from Firestore.
+    Get a specific document by ID from Supabase.
     """
     try:
-        firebase_service = get_firebase_service()
-        cloudinary_service = get_cloudinary_service()
+        db_service = get_supabase_db_service()
+        storage_service = get_supabase_storage_service()
         
-        # Get document metadata from Firestore
-        doc = firebase_service.get_document_metadata(doc_id)
+        # Get document metadata from Supabase
+        doc = db_service.get_document_metadata(doc_id)
         
         if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
         
-        # Get PDF URL from Cloudinary
-        pdf_url = cloudinary_service.get_pdf_url(doc_id)
+        # Get PDF URL from Supabase Storage
+        pdf_url = storage_service.get_pdf_url(doc_id)
         
         return Document(
             id=doc_id,
@@ -112,29 +113,23 @@ async def download_document(doc_id: str):
     """
     Get the download URL for a document's PDF.
     """
-    firebase_service = get_firebase_service()
+    db_service = get_supabase_db_service()
+    storage_service = get_supabase_storage_service()
     
-    # Get document metadata from Firestore
-    doc = firebase_service.get_document_metadata(doc_id)
+    # Get document metadata from Supabase
+    doc = db_service.get_document_metadata(doc_id)
     
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     
-    # Get the base URL
-    pdf_url = doc.get('storage_path')
+    # Get the PDF URL from Supabase Storage
+    pdf_url = storage_service.get_pdf_url(doc_id)
     
     if pdf_url:
-        # Inject fl_attachment to force download
-        # This handles the CORS/Auth issues by making it a simple navigation/download
-        if '/upload/' in pdf_url and '/fl_attachment/' not in pdf_url:
-            download_url = pdf_url.replace('/upload/', '/upload/fl_attachment/')
-        else:
-            download_url = pdf_url
-
         return {
             "success": True,
             "doc_id": doc_id,
-            "pdf_url": download_url
+            "pdf_url": pdf_url
         }
     else:
         raise HTTPException(status_code=404, detail="PDF not found in storage")
@@ -143,15 +138,15 @@ async def download_document(doc_id: str):
 @router.delete("/{doc_id}")
 async def delete_document(doc_id: str):
     """
-    Delete a document and its chunks from Qdrant and PDF from Cloudinary.
+    Delete a document and its chunks from Qdrant and PDF from Supabase Storage.
     """
     try:
-        firebase_service = get_firebase_service()
-        cloudinary_service = get_cloudinary_service()
+        db_service = get_supabase_db_service()
+        storage_service = get_supabase_storage_service()
         qdrant_service = get_qdrant_service()
         
-        # Check if document exists in Firestore
-        doc = firebase_service.get_document_metadata(doc_id)
+        # Check if document exists in Supabase
+        doc = db_service.get_document_metadata(doc_id)
         if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
         
@@ -159,24 +154,24 @@ async def delete_document(doc_id: str):
         chunks_deleted = qdrant_service.delete_by_doc_id(doc_id)
         logger.info(f"Deleted {chunks_deleted} chunks from Qdrant for doc_id: {doc_id}")
         
-        # Delete from Cloudinary
-        cloudinary_deleted = cloudinary_service.delete_pdf(doc_id)
-        if cloudinary_deleted:
-            logger.info(f"Deleted PDF from Cloudinary for doc_id: {doc_id}")
+        # Delete from Supabase Storage
+        storage_deleted = storage_service.delete_pdf(doc_id)
+        if storage_deleted:
+            logger.info(f"Deleted PDF from Supabase Storage for doc_id: {doc_id}")
         else:
-            logger.warning(f"PDF not found in Cloudinary for doc_id: {doc_id}")
+            logger.warning(f"PDF not found in Supabase Storage for doc_id: {doc_id}")
         
-        # Delete metadata from Firestore
-        firestore_deleted = firebase_service.delete_document_metadata(doc_id)
-        if firestore_deleted:
-            logger.info(f"Deleted metadata from Firestore for doc_id: {doc_id}")
+        # Delete metadata from Supabase
+        db_deleted = db_service.delete_document_metadata(doc_id)
+        if db_deleted:
+            logger.info(f"Deleted metadata from Supabase for doc_id: {doc_id}")
         
         return {
             "success": True,
             "message": f"Document {doc_id} deleted successfully",
             "chunks_deleted": chunks_deleted,
-            "pdf_deleted": cloudinary_deleted,
-            "metadata_deleted": firestore_deleted
+            "pdf_deleted": storage_deleted,
+            "metadata_deleted": db_deleted
         }
         
     except HTTPException:
@@ -210,14 +205,14 @@ async def upload_document(
     2. Extracts text from document
     3. Chunks the text
     4. Embeds and stores in Qdrant
-    5. Uploads original to Cloudinary
+    5. Uploads original to Supabase Storage
     6. Returns processing results
     """
     # Get services
     doc_processor = get_document_processor()
     qdrant_service = get_qdrant_service()
-    cloudinary_service = get_cloudinary_service()
-    firebase_service = get_firebase_service()
+    storage_service = get_supabase_storage_service()
+    db_service = get_supabase_db_service()
     name_extractor = get_name_extractor()
     
     # Check if file type is supported
@@ -309,28 +304,26 @@ async def upload_document(
             logger.error(f"Qdrant insertion failed: {qdrant_error}")
             raise HTTPException(status_code=500, detail=f"Vector database error: {str(qdrant_error)}")
         
-        # Upload PDF to Cloudinary
-        logger.debug(f"Uploading PDF to Cloudinary...")
-        cloudinary_metadata = {
+        # Upload PDF to Supabase Storage
+        logger.debug(f"Uploading PDF to Supabase Storage...")
+        storage_metadata = {
             'title': title,
             'category': category,
             'program': program,
             'department': department
         }
-        upload_result = cloudinary_service.upload_pdf(tmp_path, doc_id, cloudinary_metadata)
+        upload_result = storage_service.upload_pdf(tmp_path, doc_id, storage_metadata)
         
         pdf_url = None
-        cloudinary_public_id = None
         if upload_result:
             pdf_url = upload_result['url']
-            cloudinary_public_id = upload_result['public_id']
-            logger.info(f"PDF uploaded to Cloudinary: {pdf_url}")
+            logger.info(f"PDF uploaded to Supabase Storage: {pdf_url}")
         else:
-            logger.warning("Failed to upload PDF to Cloudinary, but chunks are in Qdrant")
+            logger.warning("Failed to upload PDF to Supabase Storage, but chunks are in Qdrant")
         
-        # Save metadata to Firestore
-        logger.info(f"Saving document metadata to Firestore...")
-        firestore_data = {
+        # Save metadata to Supabase
+        logger.info(f"Saving document metadata to Supabase...")
+        supabase_data = {
             'doc_id': doc_id,
             'title': title,
             'category': category,
@@ -340,11 +333,10 @@ async def upload_document(
             'version': 1,
             'chunk_count': len(chunks),
             'storage_path': pdf_url,
-            'cloudinary_public_id': cloudinary_public_id,
             'uploaded_by': 'admin',  # TODO: Get from auth context
         }
-        firebase_service.create_document_metadata(firestore_data)
-        logger.info(f"Document metadata saved to Firestore")
+        db_service.create_document_metadata(supabase_data)
+        logger.info(f"Document metadata saved to Supabase")
         
         # Clean up temp file
         if tmp_path and os.path.exists(tmp_path):

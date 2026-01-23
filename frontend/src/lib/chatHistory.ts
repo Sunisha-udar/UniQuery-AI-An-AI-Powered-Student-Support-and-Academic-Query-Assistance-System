@@ -1,26 +1,10 @@
 /**
  * Chat History Management
- * Handles storing and retrieving chat sessions from Firestore
- * Each session is a document containing an array of messages
+ * Handles storing and retrieving chat sessions from Supabase PostgreSQL
+ * Each session is a row containing a JSONB array of messages
  */
 
-import { db } from './firebase'
-import {
-    collection,
-    addDoc,
-    query,
-    where,
-    orderBy,
-    getDocs,
-    serverTimestamp,
-    Timestamp,
-    limit,
-    deleteDoc,
-    doc,
-    updateDoc,
-    arrayUnion,
-    getDoc
-} from 'firebase/firestore'
+import { supabase } from './supabase'
 
 export interface ChatMessage {
     id: string
@@ -34,7 +18,7 @@ export interface ChatMessage {
         score: number
     }[]
     confidence?: number
-    timestamp: Date
+    timestamp: Date | string
 }
 
 export interface ChatSession {
@@ -42,8 +26,8 @@ export interface ChatSession {
     userId: string
     messages: ChatMessage[]
     title: string
-    createdAt: Timestamp | Date
-    updatedAt: Timestamp | Date
+    createdAt: Date | string
+    updatedAt: Date | string
 }
 
 /**
@@ -56,19 +40,26 @@ export async function createChatSession(userId: string, firstMessage?: string): 
             throw new Error('UserId is required to create chat session')
         }
 
-        const sessionsRef = collection(db, 'chatSessions')
         const sessionData = {
-            userId,
+            user_id: userId,
             messages: [],
             title: firstMessage ? firstMessage.substring(0, 50) : 'New Chat',
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
         }
 
-        const docRef = await addDoc(sessionsRef, sessionData)
-        console.log('[ChatHistory] Session created with ID:', docRef.id)
-        return docRef.id
-    } catch (error: any) {
+        const { data, error } = await supabase
+            .from('chat_sessions')
+            .insert(sessionData)
+            .select('id')
+            .single()
+
+        if (error) {
+            console.error('[ChatHistory] Error creating session:', error)
+            throw error
+        }
+
+        console.log('[ChatHistory] Session created with ID:', data.id)
+        return data.id
+    } catch (error) {
         console.error('[ChatHistory] Error creating chat session:', error)
         throw error
     }
@@ -90,27 +81,50 @@ export async function addMessageToSession(
             throw new Error('SessionId is required to add message')
         }
 
-        const sessionRef = doc(db, 'chatSessions', sessionId)
+        // First, get the current messages
+        const { data: session, error: fetchError } = await supabase
+            .from('chat_sessions')
+            .select('messages')
+            .eq('id', sessionId)
+            .single()
+
+        if (fetchError) {
+            console.error('[ChatHistory] Error fetching session:', fetchError)
+            throw fetchError
+        }
+
         const message: ChatMessage = {
             id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
             type,
             text,
             citations: citations || [],
-            timestamp: new Date()
+            timestamp: new Date().toISOString()
         }
 
-        // Only add confidence if it's defined (Firebase arrayUnion doesn't accept undefined values)
+        // Only add confidence if it's defined
         if (confidence !== undefined) {
             message.confidence = confidence
         }
 
-        await updateDoc(sessionRef, {
-            messages: arrayUnion(message),
-            updatedAt: serverTimestamp()
-        })
+        // Append new message to existing messages array
+        const updatedMessages = [...(session.messages || []), message]
+
+        // Update the session with new messages
+        const { error: updateError } = await supabase
+            .from('chat_sessions')
+            .update({
+                messages: updatedMessages,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', sessionId)
+
+        if (updateError) {
+            console.error('[ChatHistory] Error updating session:', updateError)
+            throw updateError
+        }
 
         console.log('[ChatHistory] Message added to session')
-    } catch (error: any) {
+    } catch (error) {
         console.error('[ChatHistory] Error adding message:', error)
         throw error
     }
@@ -126,34 +140,32 @@ export async function loadChatSessions(userId: string): Promise<ChatSession[]> {
             throw new Error('UserId is required to load chat sessions')
         }
 
-        const sessionsRef = collection(db, 'chatSessions')
-        const q = query(
-            sessionsRef,
-            where('userId', '==', userId),
-            orderBy('updatedAt', 'desc'),
-            limit(50)
-        )
+        const { data, error } = await supabase
+            .from('chat_sessions')
+            .select('*')
+            .eq('user_id', userId)
+            .order('updated_at', { ascending: false })
+            .limit(50)
 
-        const querySnapshot = await getDocs(q)
-        const sessions: ChatSession[] = []
+        if (error) {
+            console.error('[ChatHistory] Error loading sessions:', error)
+            throw error
+        }
 
-        console.log('[ChatHistory] Found', querySnapshot.size, 'sessions')
+        console.log('[ChatHistory] Found', data.length, 'sessions')
 
-        querySnapshot.forEach((doc) => {
-            const data = doc.data()
-            sessions.push({
-                id: doc.id,
-                userId: data.userId,
-                messages: data.messages || [],
-                title: data.title || 'Untitled Chat',
-                createdAt: data.createdAt,
-                updatedAt: data.updatedAt
-            })
-        })
+        // Map to ChatSession format
+        const sessions: ChatSession[] = data.map((row: { id: string; user_id: string; messages: ChatMessage[]; title: string; created_at: string; updated_at: string }) => ({
+            id: row.id,
+            userId: row.user_id,
+            messages: row.messages || [],
+            title: row.title || 'Untitled Chat',
+            createdAt: row.created_at,
+            updatedAt: row.updated_at
+        }))
 
-        console.log('[ChatHistory] Loaded', sessions.length, 'sessions')
         return sessions
-    } catch (error: any) {
+    } catch (error) {
         console.error('[ChatHistory] Error loading chat sessions:', error)
         throw error
     }
@@ -165,24 +177,31 @@ export async function loadChatSessions(userId: string): Promise<ChatSession[]> {
 export async function loadChatSession(sessionId: string): Promise<ChatSession | null> {
     console.log('[ChatHistory] Loading chat session:', sessionId)
     try {
-        const sessionRef = doc(db, 'chatSessions', sessionId)
-        const sessionDoc = await getDoc(sessionRef)
+        const { data, error } = await supabase
+            .from('chat_sessions')
+            .select('*')
+            .eq('id', sessionId)
+            .single()
 
-        if (!sessionDoc.exists()) {
-            console.log('[ChatHistory] Session not found')
-            return null
+        if (error) {
+            if (error.code === 'PGRST116') {
+                // Not found
+                console.log('[ChatHistory] Session not found')
+                return null
+            }
+            console.error('[ChatHistory] Error loading session:', error)
+            throw error
         }
 
-        const data = sessionDoc.data()
         return {
-            id: sessionDoc.id,
-            userId: data.userId,
+            id: data.id,
+            userId: data.user_id,
             messages: data.messages || [],
             title: data.title || 'Untitled Chat',
-            createdAt: data.createdAt,
-            updatedAt: data.updatedAt
+            createdAt: data.created_at,
+            updatedAt: data.updated_at
         }
-    } catch (error: any) {
+    } catch (error) {
         console.error('[ChatHistory] Error loading chat session:', error)
         throw error
     }
@@ -198,14 +217,21 @@ export async function updateSessionTitle(sessionId: string, title: string): Prom
             throw new Error('SessionId is required to update title')
         }
 
-        const sessionRef = doc(db, 'chatSessions', sessionId)
-        await updateDoc(sessionRef, {
-            title,
-            updatedAt: serverTimestamp()
-        })
+        const { error } = await supabase
+            .from('chat_sessions')
+            .update({
+                title,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', sessionId)
+
+        if (error) {
+            console.error('[ChatHistory] Error updating title:', error)
+            throw error
+        }
 
         console.log('[ChatHistory] Session title updated')
-    } catch (error: any) {
+    } catch (error) {
         console.error('[ChatHistory] Error updating session title:', error)
         throw error
     }
@@ -217,10 +243,18 @@ export async function updateSessionTitle(sessionId: string, title: string): Prom
 export async function deleteChatSession(sessionId: string): Promise<void> {
     console.log('[ChatHistory] Deleting chat session:', sessionId)
     try {
-        const sessionRef = doc(db, 'chatSessions', sessionId)
-        await deleteDoc(sessionRef)
+        const { error } = await supabase
+            .from('chat_sessions')
+            .delete()
+            .eq('id', sessionId)
+
+        if (error) {
+            console.error('[ChatHistory] Error deleting session:', error)
+            throw error
+        }
+
         console.log('[ChatHistory] Session deleted')
-    } catch (error: any) {
+    } catch (error) {
         console.error('[ChatHistory] Error deleting chat session:', error)
         throw error
     }
@@ -232,15 +266,18 @@ export async function deleteChatSession(sessionId: string): Promise<void> {
 export async function clearAllChatSessions(userId: string): Promise<void> {
     console.log('[ChatHistory] Clearing all sessions for user:', userId)
     try {
-        const sessionsRef = collection(db, 'chatSessions')
-        const q = query(sessionsRef, where('userId', '==', userId))
+        const { error } = await supabase
+            .from('chat_sessions')
+            .delete()
+            .eq('user_id', userId)
 
-        const querySnapshot = await getDocs(q)
-        const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref))
+        if (error) {
+            console.error('[ChatHistory] Error clearing sessions:', error)
+            throw error
+        }
 
-        await Promise.all(deletePromises)
         console.log('[ChatHistory] All sessions cleared')
-    } catch (error: any) {
+    } catch (error) {
         console.error('[ChatHistory] Error clearing sessions:', error)
         throw error
     }

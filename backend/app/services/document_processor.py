@@ -309,8 +309,8 @@ class DocumentProcessor:
     def chunk_text(
         self, 
         text: str, 
-        chunk_size: int = 500, 
-        overlap: int = 50
+        chunk_size: int = 1000, 
+        overlap: int = 200
     ) -> List[str]:
         """
         Split text into overlapping chunks.
@@ -342,8 +342,8 @@ class DocumentProcessor:
         self,
         file_path: str,
         doc_metadata: Dict[str, Any],
-        chunk_size: int = 500,
-        overlap: int = 50
+        chunk_size: int = 1000,
+        overlap: int = 200
     ) -> List[Dict[str, Any]]:
         """
         Process any supported document into chunks with metadata.

@@ -1,13 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import {
-    type User as FirebaseUser,
-    signInWithEmailAndPassword,
-    createUserWithEmailAndPassword,
-    signOut,
-    onAuthStateChanged
-} from 'firebase/auth'
-import { doc, setDoc, getDoc } from 'firebase/firestore'
-import { auth, db } from '../lib/firebase'
+import { supabase } from '../lib/supabase'
+import type { User as SupabaseUser, AuthChangeEvent, Session } from '@supabase/supabase-js'
 
 export type UserRole = 'student' | 'admin'
 
@@ -52,105 +45,238 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const [user, setUser] = useState<User | null>(null)
     const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
-            if (firebaseUser) {
-                // Fetch user role from Firestore
-                try {
-                    console.log('[Auth] Fetching user data for:', firebaseUser.uid)
-                    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid))
-                    if (userDoc.exists()) {
-                        const userData = userDoc.data()
-                        console.log('[Auth] Firestore user data:', userData)
-                        console.log('[Auth] User role from Firestore:', userData.role)
-                        setUser({
-                            uid: firebaseUser.uid,
-                            email: firebaseUser.email,
-                            role: userData.role || 'student',
-                            displayName: userData.displayName,
-                            phoneNumber: userData.phoneNumber,
-                            studentId: userData.studentId,
-                            bio: userData.bio,
-                            program: userData.program,
-                            department: userData.department,
-                            semester: userData.semester,
-                        })
-                    } else {
-                        console.error('[Auth] User document does not exist in Firestore!')
-                        // User exists in Auth but not in Firestore (edge case)
-                        setUser({
-                            uid: firebaseUser.uid,
-                            email: firebaseUser.email,
-                            role: 'student',
-                        })
-                    }
-                } catch (error) {
-                    console.error('[Auth] Error fetching user from Firestore:', error)
-                    // If Firestore fails, default to student role
-                    setUser({
-                        uid: firebaseUser.uid,
-                        email: firebaseUser.email,
-                        role: 'student',
-                    })
-                }
-            } else {
-                setUser(null)
-            }
-            setLoading(false)
-        })
+    // Fetch user profile from Supabase profiles table
+    const fetchUserProfile = async (supabaseUser: SupabaseUser): Promise<User> => {
+        const defaultUser = {
+            uid: supabaseUser.id,
+            email: supabaseUser.email ?? null,
+            role: 'student' as UserRole,
+        }
 
-        return () => unsubscribe()
+        try {
+            console.log('[Auth] Fetching user profile for:', supabaseUser.id)
+
+            const timeoutPromise = new Promise<never>((_, reject) => 
+                setTimeout(() => reject(new Error('Profile fetch timeout')), 3000)
+            )
+
+            const fetchPromise = supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', supabaseUser.id)
+                .single()
+
+            const { data: profile, error } = await Promise.race([fetchPromise, timeoutPromise])
+
+            if (error) {
+                console.error('[Auth] Error fetching profile:', error)
+                return defaultUser
+            }
+
+            console.log('[Auth] Profile data:', profile)
+
+            return {
+                uid: supabaseUser.id,
+                email: supabaseUser.email ?? null,
+                role: profile.role || 'student',
+                displayName: profile.display_name,
+                phoneNumber: profile.phone_number,
+                studentId: profile.student_id,
+                bio: profile.bio,
+                program: profile.program,
+                department: profile.department,
+                semester: profile.semester,
+            }
+        } catch (error) {
+            console.error('[Auth] Error in fetchUserProfile:', error)
+            return defaultUser
+        }
+    }
+
+    useEffect(() => {
+        let mounted = true
+
+        const initializeAuth = async () => {
+            try {
+                console.log('[Auth] Initializing authentication...')
+                
+                const { data: { session }, error } = await supabase.auth.getSession()
+
+                if (error) {
+                    console.error('[Auth] Error getting session:', error)
+                    if (mounted) {
+                        setLoading(false)
+                    }
+                    return
+                }
+
+                if (session?.user && mounted) {
+                    console.log('[Auth] Found existing session')
+                    const userProfile = await fetchUserProfile(session.user)
+                    if (mounted) {
+                        setUser(userProfile)
+                    }
+                } else {
+                    console.log('[Auth] No existing session')
+                }
+            } catch (error) {
+                console.error('[Auth] Error initializing auth:', error)
+            } finally {
+                if (mounted) {
+                    setLoading(false)
+                }
+            }
+        }
+
+        initializeAuth()
+
+        // Listen for auth state changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            async (event: AuthChangeEvent, session: Session | null) => {
+                console.log('[Auth] Auth state changed:', event)
+
+                if (!mounted) return
+
+                if (event === 'SIGNED_IN' && session?.user) {
+                    const userProfile = await fetchUserProfile(session.user)
+                    if (mounted) {
+                        setUser(userProfile)
+                        setLoading(false)
+                    }
+                } else if (event === 'SIGNED_OUT') {
+                    if (mounted) {
+                        setUser(null)
+                        setLoading(false)
+                    }
+                } else if (event === 'INITIAL_SESSION') {
+                    if (session?.user && mounted) {
+                        const userProfile = await fetchUserProfile(session.user)
+                        if (mounted) {
+                            setUser(userProfile)
+                            setLoading(false)
+                        }
+                    } else if (mounted) {
+                        setLoading(false)
+                    }
+                }
+            }
+        )
+
+        return () => {
+            mounted = false
+            subscription.unsubscribe()
+        }
     }, [])
 
     const login = async (email: string, password: string) => {
         console.log('[Auth] Starting login...')
-        await signInWithEmailAndPassword(auth, email, password)
-        console.log('[Auth] Firebase auth successful, onAuthStateChanged will handle user data fetch')
-        // onAuthStateChanged will automatically fetch and update user data
+
+        const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password
+        })
+
+        if (error) {
+            console.error('[Auth] Login error:', error)
+            throw error
+        }
+
+        console.log('[Auth] Login successful')
     }
 
     const signup = async (email: string, password: string, role: UserRole, profile?: Partial<User>) => {
-        try {
-            const credential = await createUserWithEmailAndPassword(auth, email, password)
+        console.log('[Auth] Starting signup...')
 
-            try {
-                // Create user document in Firestore
-                await setDoc(doc(db, 'users', credential.user.uid), {
-                    uid: credential.user.uid,
-                    email: credential.user.email,
+        try {
+            // Create user in Supabase Auth
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password
+            })
+
+            if (error) {
+                console.error('[Auth] Signup error:', error)
+                throw error
+            }
+
+            if (!data.user) {
+                throw new Error('User creation failed')
+            }
+
+            // Create/update profile in profiles table
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .upsert({
+                    id: data.user.id,
+                    email: data.user.email,
                     role,
                     program: profile?.program || '',
                     department: profile?.department || '',
                     semester: profile?.semester ? Number(profile.semester) : 1,
-                    createdAt: new Date().toISOString(),
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
                 })
-            } catch (firestoreError) {
-                // ROLLBACK: If Firestore write fails, delete the Auth user
-                // so the user is not left in a broken state (exists in Auth but no profile)
-                console.error("Firestore Profile Creation Failed. Rolling back Auth user.", firestoreError);
-                await credential.user.delete();
-                throw new Error("Failed to create user profile. Please try again.");
+
+            if (profileError) {
+                console.error('[Auth] Profile creation error:', profileError)
+                // Note: We can't easily rollback Auth user in Supabase like Firebase
+                // The profile will be created on next login via trigger
+                throw new Error('Failed to create user profile. Please try again.')
             }
+
+            console.log('[Auth] Signup successful')
         } catch (error) {
-            console.error("Signup Error:", error);
-            throw error;
+            console.error('[Auth] Signup Error:', error)
+            throw error
         }
     }
 
     const updateUser = async (data: Partial<User>) => {
         if (!user) return
+
         try {
-            await setDoc(doc(db, 'users', user.uid), data, { merge: true })
+            // Map camelCase to snake_case for Supabase
+            const updateData: Record<string, unknown> = {
+                updated_at: new Date().toISOString()
+            }
+
+            if (data.displayName !== undefined) updateData.display_name = data.displayName
+            if (data.phoneNumber !== undefined) updateData.phone_number = data.phoneNumber
+            if (data.studentId !== undefined) updateData.student_id = data.studentId
+            if (data.bio !== undefined) updateData.bio = data.bio
+            if (data.program !== undefined) updateData.program = data.program
+            if (data.department !== undefined) updateData.department = data.department
+            if (data.semester !== undefined) updateData.semester = data.semester
+            if (data.role !== undefined) updateData.role = data.role
+
+            const { error } = await supabase
+                .from('profiles')
+                .update(updateData)
+                .eq('id', user.uid)
+
+            if (error) {
+                console.error('[Auth] Update profile error:', error)
+                throw error
+            }
+
+            // Update local state
             setUser(prev => prev ? { ...prev, ...data } : null)
         } catch (error) {
-            console.error("Update Profile Error:", error)
+            console.error('[Auth] Update Profile Error:', error)
             throw error
         }
     }
 
     const logout = async () => {
-        await signOut(auth)
+        const { error } = await supabase.auth.signOut({ scope: 'local' })
+        if (error) {
+            console.error('[Auth] Logout error:', error)
+            throw error
+        }
         setUser(null)
+        // Clear all storage
+        localStorage.clear()
+        sessionStorage.clear()
     }
 
     return (

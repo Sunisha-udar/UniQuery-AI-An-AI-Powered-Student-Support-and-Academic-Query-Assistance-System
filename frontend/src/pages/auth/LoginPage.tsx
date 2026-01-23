@@ -17,6 +17,7 @@ export function LoginPage() {
     // Redirect if already logged in
     useEffect(() => {
         if (user) {
+            setLoading(false)
             navigate(user.role === 'admin' ? '/admin' : '/student', { replace: true })
         }
     }, [user, navigate])
@@ -27,11 +28,13 @@ export function LoginPage() {
         setLoading(true)
 
         try {
+            // Clear any stale data first
+            sessionStorage.clear()
+            
             await login(email, password)
-            // Navigation will happen automatically via auth state change
-        } catch {
+            // Navigation happens via useEffect when user state updates
+        } catch (err) {
             setError('Invalid email or password. Please try again.')
-        } finally {
             setLoading(false)
         }
     }

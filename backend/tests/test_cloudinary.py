@@ -24,7 +24,7 @@ def test_cloudinary_config():
     
     if not settings.cloudinary_cloud_name:
         print("❌ CLOUDINARY_CLOUD_NAME not set in .env")
-        print("\nPlease add your Cloudinary credentials to backend/.env:")
+        print("\nPlease add your Cloudinary credentials to .env:")
         print("CLOUDINARY_CLOUD_NAME=your_cloud_name")
         print("CLOUDINARY_API_KEY=your_api_key")
         print("CLOUDINARY_API_SECRET=your_api_secret")
