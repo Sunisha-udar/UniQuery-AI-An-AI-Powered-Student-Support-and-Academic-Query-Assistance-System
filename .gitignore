@@ -44,3 +44,8 @@ backend/**/__pycache__
 
 serviceAccountKey.json
 .vercel
+
+.agent
+.amazonq
+.qodo
+.vscode
