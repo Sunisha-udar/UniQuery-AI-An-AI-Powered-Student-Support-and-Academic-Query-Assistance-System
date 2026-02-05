@@ -10,6 +10,7 @@ import {
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
+import { SuspendedAccountModal } from '../../components/modals/SuspendedAccountModal'
 
 interface Message {
     id: string
@@ -218,6 +219,15 @@ export function StudentDashboard() {
 
 
 
+
+    // Show suspension modal if user is suspended
+    if (user?.suspended) {
+        return (
+            <div className="fixed inset-0 z-50 bg-background flex items-center justify-center">
+                <SuspendedAccountModal isOpen={true} />
+            </div>
+        )
+    }
 
     return (
         <div className="flex flex-col h-full relative">

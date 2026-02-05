@@ -15,6 +15,7 @@ interface User {
     program?: string
     department?: string
     semester?: number
+    suspended?: boolean
 }
 
 interface AuthContextType {
@@ -88,6 +89,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
             console.log('[Auth] Profile data:', profile)
 
+            // Check if account is suspended
+            if (profile.suspended) {
+                console.warn('[Auth] Account is suspended, signing out')
+                await supabase.auth.signOut()
+                return {
+                    uid: supabaseUser.id,
+                    email: supabaseUser.email ?? null,
+                    role: profile.role || 'student',
+                    suspended: true
+                }
+            }
+
             return {
                 uid: supabaseUser.id,
                 email: supabaseUser.email ?? null,
@@ -99,6 +112,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 program: profile.program,
                 department: profile.department,
                 semester: profile.semester,
+                suspended: false,
             }
         } catch (error) {
             console.error('[Auth] Error in fetchUserProfile:', error)
@@ -128,7 +142,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     console.log('[Auth] Found existing session')
                     const userProfile = await fetchUserProfile(session.user)
                     if (mounted) {
-                        setUser(userProfile)
+                        if (userProfile.suspended) {
+                            setUser(null)
+                        } else {
+                            setUser(userProfile)
+                        }
                     }
                 } else {
                     console.log('[Auth] No existing session')
@@ -155,8 +173,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     if (event === 'SIGNED_IN' && session?.user) {
                         const userProfile = await fetchUserProfile(session.user)
                         if (mounted) {
-                            setUser(userProfile)
-                            setLoading(false)
+                            if (userProfile.suspended) {
+                                setUser(null)
+                            } else {
+                                setUser(userProfile)
+                                setLoading(false)
+                            }
                         }
                     } else if (event === 'SIGNED_OUT') {
                         if (mounted) {
@@ -167,8 +189,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
                         if (session?.user && mounted) {
                             const userProfile = await fetchUserProfile(session.user)
                             if (mounted) {
-                                setUser(userProfile)
-                                setLoading(false)
+                                if (userProfile.suspended) {
+                                    setUser(null)
+                                } else {
+                                    setUser(userProfile)
+                                    setLoading(false)
+                                }
                             }
                         } else if (mounted) {
                             setLoading(false)

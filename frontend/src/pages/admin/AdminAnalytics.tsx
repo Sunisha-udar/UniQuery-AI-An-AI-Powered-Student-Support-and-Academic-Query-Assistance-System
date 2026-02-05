@@ -1,13 +1,16 @@
 
 import { Card, CardContent } from '../../components/ui/Card'
-import { BarChart3, MessageSquare, TrendingUp, AlertCircle, FileText } from 'lucide-react'
+import { BarChart3, MessageSquare, TrendingUp, AlertCircle, FileText, Upload } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getAllUserQueries } from '../../lib/chatHistory'
 import { api } from '../../lib/api'
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell
 } from 'recharts'
+import { ManualAnswerModal } from '../../components/admin/ManualAnswerModal'
+
 
 interface AnalyticsData {
     totalQueries: number
@@ -22,6 +25,7 @@ interface AnalyticsData {
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'] // Premium Blue, Emerald, Amber, Rose
 
 export function AdminAnalytics() {
+    const navigate = useNavigate()
     const [analytics, setAnalytics] = useState<AnalyticsData>({
         totalQueries: 0,
         avgConfidence: 0,
@@ -33,6 +37,9 @@ export function AdminAnalytics() {
     })
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [isManualAnswerModalOpen, setIsManualAnswerModalOpen] = useState(false)
+    const [selectedQuestion, setSelectedQuestion] = useState('')
+
 
     useEffect(() => {
         loadAnalytics()
@@ -314,19 +321,46 @@ export function AdminAnalytics() {
                                         Top Low-Confidence Questions
                                     </h3>
                                     <p className="text-sm text-text-muted mb-4">
-                                        These questions received low-confidence answers. Consider uploading more documents on these topics.
+                                        These questions received low-confidence answers. Upload relevant documents to improve future responses.
                                     </p>
                                     <div className="space-y-3">
                                         {analytics.topLowConfidenceQuestions.map((q, idx) => (
                                             <div
                                                 key={idx}
-                                                className="p-4 rounded-lg bg-red-500/5 border border-red-500/20"
+                                                className="p-4 rounded-lg bg-red-500/5 border border-red-500/20 hover:border-red-500/40 transition-colors"
                                             >
                                                 <div className="flex items-start justify-between gap-4">
-                                                    <p className="text-sm text-text flex-1">{q.question}</p>
-                                                    <span className="text-xs font-semibold text-red-500 whitespace-nowrap">
-                                                        {Math.round(q.confidence * 100)}% conf
-                                                    </span>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm text-text line-clamp-2">{q.question}</p>
+                                                        <span className="text-xs font-semibold text-red-500 mt-1 inline-block">
+                                                            {Math.round(q.confidence * 100)}% confidence
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-shrink-0">
+
+                                                        <button
+                                                            onClick={() => {
+                                                                // Store the question context for the documents page
+                                                                sessionStorage.setItem('fixItQuestion', q.question)
+                                                                navigate('/admin/documents?action=upload')
+                                                            }}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition-colors"
+                                                        >
+                                                            <Upload className="w-3.5 h-3.5" />
+                                                            Upload Doc
+                                                        </button>
+
+                                                        <button
+                                                            onClick={() => {
+                                                                setSelectedQuestion(q.question)
+                                                                setIsManualAnswerModalOpen(true)
+                                                            }}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-xs font-medium transition-colors"
+                                                        >
+                                                            <MessageSquare className="w-3.5 h-3.5" />
+                                                            Provide Answer
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))}
@@ -349,6 +383,13 @@ export function AdminAnalytics() {
                     </>
                 )}
             </div>
+
+            <ManualAnswerModal
+                isOpen={isManualAnswerModalOpen}
+                onClose={() => setIsManualAnswerModalOpen(false)}
+                question={selectedQuestion}
+                onSuccess={loadAnalytics}
+            />
         </div>
     )
 }

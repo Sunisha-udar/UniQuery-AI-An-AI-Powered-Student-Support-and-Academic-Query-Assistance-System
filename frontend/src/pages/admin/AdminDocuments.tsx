@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 
 import { Button } from '../../components/ui/Button'
 import { Card, CardContent, CardHeader } from '../../components/ui/Card'
@@ -36,10 +37,27 @@ export function AdminDocuments() {
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const [title, setTitle] = useState('')
 
-    // Load documents on mount
+    const location = useLocation()
+    const [fixItQuestion, setFixItQuestion] = useState<string | null>(null)
+
+    // Load documents on mount only
     useEffect(() => {
         loadDocuments()
     }, [])
+
+    // Handle URL-driven UI state changes
+    useEffect(() => {
+        // Check for "Fix It" context
+        const searchParams = new URLSearchParams(location.search)
+        if (searchParams.get('action') === 'upload') {
+            setShowUploadModal(true)
+        }
+
+        const storedQuestion = sessionStorage.getItem('fixItQuestion')
+        if (storedQuestion) {
+            setFixItQuestion(storedQuestion)
+        }
+    }, [location])
 
     const loadDocuments = async () => {
         try {
@@ -115,6 +133,8 @@ export function AdminDocuments() {
             setTimeout(() => {
                 setShowUploadModal(false)
                 setUploadSuccess(false)
+                sessionStorage.removeItem('fixItQuestion')
+                setFixItQuestion(null)
             }, 2000)
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Upload failed')
@@ -322,12 +342,20 @@ export function AdminDocuments() {
                                             setShowUploadModal(false)
                                             setError(null)
                                             setUploadSuccess(false)
+                                            sessionStorage.removeItem('fixItQuestion')
+                                            setFixItQuestion(null)
                                         }}
                                         className="p-1 rounded-lg hover:bg-background text-text-muted hover:text-text transition-colors cursor-pointer"
                                     >
                                         <X className="w-5 h-5" />
                                     </button>
                                 </div>
+                                {fixItQuestion && (
+                                    <div className="mt-2 p-3 bg-primary/10 border border-primary/20 rounded-lg">
+                                        <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-1">Fixing Question:</p>
+                                        <p className="text-sm text-text italic line-clamp-2">"{fixItQuestion}"</p>
+                                    </div>
+                                )}
                             </CardHeader>
                             <CardContent>
                                 {uploadSuccess ? (
@@ -383,6 +411,8 @@ export function AdminDocuments() {
                                                 onClick={() => {
                                                     setShowUploadModal(false)
                                                     setError(null)
+                                                    sessionStorage.removeItem('fixItQuestion')
+                                                    setFixItQuestion(null)
                                                 }}
                                                 disabled={uploading}
                                             >

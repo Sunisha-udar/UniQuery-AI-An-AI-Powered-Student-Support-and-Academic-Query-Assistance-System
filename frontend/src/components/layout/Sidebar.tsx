@@ -21,7 +21,8 @@ import {
     FileText,
     BarChart3,
     PanelLeftClose,
-    PanelLeftOpen
+    PanelLeftOpen,
+    Users
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -44,6 +45,7 @@ const ADMIN_NAV: NavItem[] = [
     { icon: FileText, label: 'Documents', href: '/admin/documents' },
     { icon: MessageSquare, label: 'Queries', href: '/admin/queries' },
     { icon: BarChart3, label: 'Analytics', href: '/admin/analytics' },
+    { icon: Users, label: 'Users', href: '/admin/users' },
 ]
 
 export function Sidebar({

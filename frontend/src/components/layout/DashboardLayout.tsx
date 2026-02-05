@@ -13,7 +13,7 @@ export function DashboardLayout({
     variant,
     currentSessionId,
 }: DashboardLayoutProps) {
-    const [isExpanded, setIsExpanded] = useState(true)
+    const [isExpanded, setIsExpanded] = useState(false)
 
     const toggleSidebar = () => {
         setIsExpanded(!isExpanded)

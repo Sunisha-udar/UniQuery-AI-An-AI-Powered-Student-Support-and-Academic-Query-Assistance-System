@@ -5,6 +5,9 @@ import { useEffect, useState } from 'react'
 import { getAllUserQueries } from '../../lib/chatHistory'
 import { Button } from '../../components/ui/Button'
 import { clsx } from 'clsx'
+import { ManualAnswerModal } from '../../components/admin/ManualAnswerModal'
+import { Upload } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 interface QueryWithDetails {
     id: string
@@ -21,6 +24,9 @@ export function AdminQueries() {
     const [searchQuery, setSearchQuery] = useState('')
     const [currentPage, setCurrentPage] = useState(1)
     const ITEMS_PER_PAGE = 10
+    const [isManualAnswerModalOpen, setIsManualAnswerModalOpen] = useState(false)
+    const [selectedQuestion, setSelectedQuestion] = useState('')
+    const navigate = useNavigate()
     // Placeholder for future "View Chat" modal
     // const [selectedChat, setSelectedChat] = useState<ChatSession | null>(null)
 
@@ -252,6 +258,9 @@ export function AdminQueries() {
                                             <th className="text-left px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
                                                 Time
                                             </th>
+                                            <th className="text-left px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
+                                                Actions
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-border">
@@ -279,6 +288,34 @@ export function AdminQueries() {
                                                     <div className="flex items-center gap-1.5 text-sm text-text-muted">
                                                         <Clock className="w-3.5 h-3.5" />
                                                         {formatTimestamp(query.timestamp)}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => {
+                                                                // Store the question context for the documents page
+                                                                sessionStorage.setItem('fixItQuestion', query.question)
+                                                                navigate('/admin/documents?action=upload')
+                                                            }}
+                                                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition-colors"
+                                                            title="Upload Document"
+                                                        >
+                                                            <Upload className="w-3.5 h-3.5" />
+                                                            Upload
+                                                        </button>
+
+                                                        <button
+                                                            onClick={() => {
+                                                                setSelectedQuestion(query.question)
+                                                                setIsManualAnswerModalOpen(true)
+                                                            }}
+                                                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-xs font-medium transition-colors"
+                                                            title="Provide Manual Answer"
+                                                        >
+                                                            <MessageSquare className="w-3.5 h-3.5" />
+                                                            Answer
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -330,6 +367,13 @@ export function AdminQueries() {
                         </div>
                     )}
                 </Card>
+
+                <ManualAnswerModal
+                    isOpen={isManualAnswerModalOpen}
+                    onClose={() => setIsManualAnswerModalOpen(false)}
+                    question={selectedQuestion}
+                    onSuccess={loadQueries}
+                />
             </div>
         </div>
     )
