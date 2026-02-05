@@ -16,7 +16,7 @@ The system utilizes **Retrieval-Augmented Generation (RAG)**:
 1. **Documents** are processed and stored as vector embeddings in Qdrant.
 2. **Student queries** are embedded and used to search for relevant document sections.
 3. **LLM (Groq)** generates responses based on the retrieved context, ensuring accuracy and relevance.
-4. **Firebase** handles user authentication and document metadata management.
+4. **Supabase** handles user authentication and document metadata management.
 
 ## Tech Stack
 
@@ -24,11 +24,11 @@ The system utilizes **Retrieval-Augmented Generation (RAG)**:
 - **React 19 + TypeScript**
 - **Vite**
 - **Tailwind CSS 4**
-- **Firebase SDK**
+- **Supabase JS Client**
 
 ### Backend
 - **FastAPI (Python)**
 - **Qdrant Cloud** (Vector DB)
 - **BGE-Small-EN** (Embeddings)
 - **Groq** (LLM)
-- **Firebase Admin SDK**
+- **Supabase** (Auth & Database)
