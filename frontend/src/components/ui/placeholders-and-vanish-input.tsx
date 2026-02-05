@@ -180,10 +180,10 @@ export function PlaceholdersAndVanishInput({
     <form
       className={cn(
         "w-full relative max-w-2xl mx-auto rounded-full overflow-hidden transition-all duration-300",
-        "h-14 sm:h-16", // Increased height
-        "bg-surface shadow-[0_8px_30px_rgb(0,0,0,0.06)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)]", // Better shadow
-        "border-2", // Thicker border
-        isFocused ? "border-primary/50 ring-4 ring-primary/10" : "border-border", // Focus state
+        "h-12 sm:h-13",
+        "bg-surface shadow-[0_8px_30px_rgb(0,0,0,0.06)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)]",
+        "border-2",
+        isFocused ? "border-primary/50 ring-4 ring-primary/10" : "border-border",
         value && "bg-background"
       )}
       onSubmit={handleSubmit}
@@ -219,7 +219,7 @@ export function PlaceholdersAndVanishInput({
           disabled={!value}
           type="submit"
           className={cn(
-            "h-10 w-10 sm:h-12 sm:w-12 rounded-full transition-all duration-300 flex items-center justify-center shadow-md",
+            "h-8 w-8 sm:h-10 sm:w-10 rounded-full transition-all duration-300 flex items-center justify-center shadow-md",
             value
               ? "bg-gradient-to-r from-primary to-teal text-white hover:opacity-90 hover:scale-105 transform cursor-pointer"
               : "bg-background text-text-muted cursor-not-allowed"
@@ -235,7 +235,7 @@ export function PlaceholdersAndVanishInput({
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="h-5 w-5 sm:h-6 sm:w-6"
+            className="h-4 w-4 sm:h-5 sm:w-5"
           >
             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
             <motion.path

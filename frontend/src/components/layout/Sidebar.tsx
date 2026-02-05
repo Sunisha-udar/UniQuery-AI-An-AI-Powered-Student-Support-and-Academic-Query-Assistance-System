@@ -1,23 +1,36 @@
-import { Link, useLocation } from 'react-router-dom'
-import { useState } from 'react'
-import { useAuth } from '../../contexts/AuthContext'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { useTheme } from '../../contexts/ThemeContext'
-import { Badge } from '../ui/Badge'
+import { useAuth } from '../../contexts/AuthContext'
 import { LogoutModal } from '../ui/LogoutModal'
+import { loadChatSessions, deleteChatSession, type ChatSession } from '../../lib/chatHistory'
 import {
-    LayoutDashboard,
-    FileText,
-    HelpCircle,
-    BarChart3,
     Settings,
     LogOut,
     GraduationCap,
-    User,
     MessageSquare,
     Moon,
-    Sun
+    Sun,
+    Plus,
+    Trash2,
+    HelpCircle,
+    Search,
+    User,
+    LayoutDashboard,
+    FileText,
+    BarChart3,
+    PanelLeftClose,
+    PanelLeftOpen
 } from 'lucide-react'
 import { clsx } from 'clsx'
+import { motion, AnimatePresence } from 'framer-motion'
+
+interface SidebarProps {
+    variant: 'admin' | 'student'
+    isExpanded: boolean
+    onToggle: () => void
+    currentSessionId?: string | null
+}
 
 interface NavItem {
     icon: React.ElementType
@@ -25,98 +38,466 @@ interface NavItem {
     href: string
 }
 
-interface SidebarProps {
-    variant: 'admin' | 'student'
-}
-
 const ADMIN_NAV: NavItem[] = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/admin' },
     { icon: FileText, label: 'Documents', href: '/admin/documents' },
     { icon: MessageSquare, label: 'Queries', href: '/admin/queries' },
     { icon: BarChart3, label: 'Analytics', href: '/admin/analytics' },
-    { icon: Settings, label: 'Settings', href: '/admin/settings' },
 ]
 
-const STUDENT_NAV: NavItem[] = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/student' },
-    // { icon: FileText, label: 'Manage Documents', href: '/student/documents' }, // Removed: Admin only
-    { icon: HelpCircle, label: 'FAQs', href: '/student/faqs' },
-    { icon: Settings, label: 'Settings', href: '/student/settings' },
-]
-
-export function Sidebar({ variant }: SidebarProps) {
-    const { user } = useAuth()
+export function Sidebar({
+    variant,
+    isExpanded,
+    onToggle,
+    currentSessionId,
+}: SidebarProps) {
     const { theme, toggleTheme } = useTheme()
+    const { user } = useAuth()
     const location = useLocation()
-    const navItems = variant === 'admin' ? ADMIN_NAV : STUDENT_NAV
+    const navigate = useNavigate()
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
+    const [sessions, setSessions] = useState<ChatSession[]>([])
+    const [loading, setLoading] = useState(false)
+    const [searchQuery, setSearchQuery] = useState('')
+
+    // Load chat sessions if user is a student
+    useEffect(() => {
+        if (variant === 'student' && user?.uid) {
+            loadSessions()
+        }
+    }, [variant, user?.uid])
+
+    const loadSessions = async () => {
+        if (!user?.uid) return
+        try {
+            setLoading(true)
+            const loadedSessions = await loadChatSessions(user.uid)
+            setSessions(loadedSessions)
+        } catch (err) {
+            console.error('Failed to load sessions:', err)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
+        e.stopPropagation()
+        if (!confirm('Delete this chat?')) return
+
+        try {
+            await deleteChatSession(sessionId)
+            setSessions(prev => prev.filter(s => s.id !== sessionId))
+
+            if (sessionId === currentSessionId) {
+                navigate('/student')
+            }
+        } catch (err) {
+            console.error('Failed to delete session:', err)
+        }
+    }
+
+    const formatDate = (date: any) => {
+        const d = date?.toDate ? date.toDate() : new Date(date)
+        const now = new Date()
+        const diff = now.getTime() - d.getTime()
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+
+        if (days === 0) return 'Today'
+        if (days === 1) return 'Yesterday'
+        if (days < 7) return `${days} days ago`
+        return d.toLocaleDateString()
+    }
+
+    const filteredSessions = sessions.filter(session =>
+        session.title.toLowerCase().includes(searchQuery.toLowerCase())
+    )
 
     return (
-        <aside className="w-64 bg-surface border-r border-border h-screen flex flex-col fixed left-0 top-0 z-30">
-            {/* Logo */}
-            <div className="p-5 border-b border-border flex items-center gap-3 flex-shrink-0">
-                <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
-                    <GraduationCap className="w-5 h-5 text-white" />
+        <motion.aside
+            initial={false}
+            animate={{
+                width: isExpanded ? '260px' : '64px'
+            }}
+            transition={{
+                duration: 0.25,
+                ease: [0.4, 0, 0.2, 1]
+            }}
+            className="bg-sidebar border-r border-border h-screen flex flex-col fixed left-0 top-0 z-30 overflow-hidden"
+        >
+            {/* Logo & New Chat/Navigation */}
+            <div className="p-3 flex-shrink-0 space-y-2">
+                {/* Logo */}
+                <div className={clsx(
+                    "flex items-center overflow-hidden h-10 transition-all",
+                    isExpanded ? "justify-between px-2 gap-3" : "justify-center px-0"
+                )}>
+                    {isExpanded && (
+                        <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+                                <GraduationCap className="w-5 h-5 text-white" />
+                            </div>
+                            <motion.span
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -10 }}
+                                transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                                className="font-semibold text-text whitespace-nowrap text-base"
+                            >
+                                UniQuery AI
+                            </motion.span>
+                        </div>
+                    )}
+
+                    <button
+                        onClick={onToggle}
+                        className="p-1.5 rounded-lg text-text-muted hover:text-text hover:bg-sidebar-hover transition-colors"
+                        title={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
+                    >
+                        {isExpanded ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
+                    </button>
                 </div>
-                <div>
-                    <span className="font-semibold text-text">UniQuery</span>
-                    <Badge variant="primary" className="ml-2 text-xs">{variant === 'admin' ? 'Admin' : 'Student'}</Badge>
-                </div>
+
+                {/* New Chat Button - Only for students */}
+                {variant === 'student' && (
+                    <motion.button
+                        onClick={() => navigate('/student')}
+                        className={clsx(
+                            'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-text-muted hover:bg-sidebar-hover hover:text-text',
+                            isExpanded ? 'justify-start' : 'justify-center'
+                        )}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        title={!isExpanded ? 'New Chat' : undefined}
+                    >
+                        <Plus className="w-5 h-5 flex-shrink-0" />
+                        <AnimatePresence mode="wait">
+                            {isExpanded && (
+                                <motion.span
+                                    initial={{ opacity: 0, width: 0 }}
+                                    animate={{ opacity: 1, width: 'auto' }}
+                                    exit={{ opacity: 0, width: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="text-sm font-medium whitespace-nowrap overflow-hidden"
+                                >
+                                    New chat
+                                </motion.span>
+                            )}
+                        </AnimatePresence>
+                    </motion.button>
+                )}
             </div>
 
-            {/* Navigation */}
-            <nav className="flex-1 p-4 overflow-y-auto">
-                <ul className="space-y-1">
-                    {navItems.map((item) => {
-                        const isActive = location.pathname === item.href
-                        return (
-                            <li key={item.href}>
-                                <Link
-                                    to={item.href}
-                                    className={clsx(
-                                        'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200',
-                                        isActive
-                                            ? 'bg-primary text-white'
-                                            : 'text-text-muted hover:text-text hover:bg-background'
-                                    )}
-                                >
-                                    <item.icon className="w-5 h-5" />
-                                    {item.label}
-                                </Link>
-                            </li>
-                        )
-                    })}
-                </ul>
-            </nav>
+            {/* Admin Navigation */}
+            {variant === 'admin' && (
+                <nav className="px-2 pb-2 flex-shrink-0">
+                    <ul className="space-y-0.5">
+                        {ADMIN_NAV.map((item) => {
+                            const isActive = location.pathname === item.href ||
+                                (item.href !== '/admin' && location.pathname.startsWith(item.href))
+                            return (
+                                <li key={item.href}>
+                                    <Link
+                                        to={item.href}
+                                        className={clsx(
+                                            'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-normal transition-all duration-200',
+                                            isExpanded ? 'justify-start' : 'justify-center',
+                                            isActive
+                                                ? 'bg-sidebar-active text-text'
+                                                : 'text-text-muted hover:bg-sidebar-hover hover:text-text'
+                                        )}
+                                        title={!isExpanded ? item.label : undefined}
+                                    >
+                                        <item.icon className="w-5 h-5 flex-shrink-0" />
+                                        <AnimatePresence mode="wait">
+                                            {isExpanded && (
+                                                <motion.span
+                                                    initial={{ opacity: 0, width: 0 }}
+                                                    animate={{ opacity: 1, width: 'auto' }}
+                                                    exit={{ opacity: 0, width: 0 }}
+                                                    transition={{ duration: 0.2 }}
+                                                    className="whitespace-nowrap overflow-hidden"
+                                                >
+                                                    {item.label}
+                                                </motion.span>
+                                            )}
+                                        </AnimatePresence>
+                                    </Link>
+                                </li>
+                            )
+                        })}
+                    </ul>
+                </nav>
+            )}
 
-            {/* User Info */}
-            <div className="p-4 border-t border-border flex-shrink-0">
-                <div className="flex items-center gap-3 mb-3">
-                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                        <User className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-text truncate">
-                            {user?.displayName || user?.email || 'User'}
-                        </p>
-                        <p className="text-xs text-text-muted capitalize">{variant}</p>
-                    </div>
+            {/* Search - Only when expanded and for students */}
+            {variant === 'student' && (
+                <AnimatePresence mode="wait">
+                    {isExpanded && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="px-3 pb-2"
+                        >
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                                <input
+                                    type="text"
+                                    placeholder="Search chats"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-9 pr-3 py-2 bg-sidebar-hover border border-border rounded-lg text-sm text-text placeholder:text-text-muted focus:outline-hidden focus:ring-2 focus:ring-primary/50 transition-all"
+                                />
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            )}
+
+            {/* Chat History - Only for students */}
+            {variant === 'student' && (
+                <div className="flex-1 overflow-y-auto px-2 pb-2">
+                    {isExpanded ? (
+                        loading ? (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="text-center py-4 text-text-muted text-sm"
+                            >
+                                Loading...
+                            </motion.div>
+                        ) : filteredSessions.length === 0 ? (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="text-center py-8 text-text-muted text-sm"
+                            >
+                                <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                <p>{searchQuery ? 'No chats found' : 'No chat history yet'}</p>
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.2 }}
+                                className="space-y-0.5"
+                            >
+                                {filteredSessions.map((session) => (
+                                    <motion.div
+                                        key={session.id}
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        onClick={() => navigate(`/student?session=${session.id}`)}
+                                        className={clsx(
+                                            'group relative flex items-start gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200',
+                                            currentSessionId === session.id
+                                                ? 'bg-sidebar-active text-text'
+                                                : 'hover:bg-sidebar-hover text-text-muted hover:text-text'
+                                        )}
+                                        whileHover={{ scale: 1.01 }}
+                                        whileTap={{ scale: 0.99 }}
+                                    >
+                                        <MessageSquare className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm truncate font-medium">{session.title}</p>
+                                            <p className="text-xs opacity-60">{formatDate(session.updatedAt)}</p>
+                                        </div>
+                                        <button
+                                            onClick={(e) => handleDeleteSession(session.id, e)}
+                                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-surface rounded transition-all duration-200"
+                                            aria-label="Delete chat"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5 hover:text-error" />
+                                        </button>
+                                    </motion.div>
+                                ))}
+                            </motion.div>
+                        )
+                    ) : (
+                        // Collapsed view - show icons only
+                        <div className="space-y-1">
+                            {filteredSessions.slice(0, 5).map((session) => (
+                                <motion.button
+                                    key={session.id}
+                                    onClick={() => navigate(`/student?session=${session.id}`)}
+                                    className={clsx(
+                                        'w-full p-2.5 rounded-lg transition-all duration-200 flex items-center justify-center',
+                                        currentSessionId === session.id
+                                            ? 'bg-sidebar-active text-text'
+                                            : 'hover:bg-sidebar-hover text-text-muted hover:text-text'
+                                    )}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    title={session.title}
+                                >
+                                    <MessageSquare className="w-5 h-5" />
+                                </motion.button>
+                            ))}
+                        </div>
+                    )}
                 </div>
-                <div className="flex gap-2">
-                    <button
+            )}
+
+            {/* Spacer for admin to push bottom content down */}
+            {variant === 'admin' && <div className="flex-1" />}
+
+            {/* Bottom Navigation - Settings, FAQ, Theme */}
+            <div className="border-t border-border flex-shrink-0">
+                <div className="p-2 space-y-0.5">
+                    {/* Settings */}
+                    <Link
+                        to={variant === 'student' ? '/student/settings' : '/admin/settings'}
+                        className={clsx(
+                            'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-normal transition-all duration-200',
+                            isExpanded ? 'justify-start' : 'justify-center',
+                            location.pathname.includes('/settings')
+                                ? 'bg-sidebar-active text-text'
+                                : 'text-text-muted hover:bg-sidebar-hover hover:text-text'
+                        )}
+                        title={!isExpanded ? 'Settings' : undefined}
+                    >
+                        <Settings className="w-5 h-5 flex-shrink-0" />
+                        <AnimatePresence mode="wait">
+                            {isExpanded && (
+                                <motion.span
+                                    initial={{ opacity: 0, width: 0 }}
+                                    animate={{ opacity: 1, width: 'auto' }}
+                                    exit={{ opacity: 0, width: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="whitespace-nowrap overflow-hidden"
+                                >
+                                    Settings
+                                </motion.span>
+                            )}
+                        </AnimatePresence>
+                    </Link>
+
+                    {/* FAQ - Only for students */}
+                    {variant === 'student' && (
+                        <Link
+                            to="/student/faqs"
+                            className={clsx(
+                                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-normal transition-all duration-200',
+                                isExpanded ? 'justify-start' : 'justify-center',
+                                location.pathname.includes('/faqs')
+                                    ? 'bg-sidebar-active text-text'
+                                    : 'text-text-muted hover:bg-sidebar-hover hover:text-text'
+                            )}
+                            title={!isExpanded ? 'FAQs' : undefined}
+                        >
+                            <HelpCircle className="w-5 h-5 flex-shrink-0" />
+                            <AnimatePresence mode="wait">
+                                {isExpanded && (
+                                    <motion.span
+                                        initial={{ opacity: 0, width: 0 }}
+                                        animate={{ opacity: 1, width: 'auto' }}
+                                        exit={{ opacity: 0, width: 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="whitespace-nowrap overflow-hidden"
+                                    >
+                                        FAQs
+                                    </motion.span>
+                                )}
+                            </AnimatePresence>
+                        </Link>
+                    )}
+
+                    {/* Theme Toggle */}
+                    <motion.button
                         onClick={toggleTheme}
-                        className="flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium text-text-muted hover:text-text hover:bg-background transition-colors"
-                        title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                        className={clsx(
+                            'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-text-muted hover:bg-sidebar-hover hover:text-text transition-all duration-200',
+                            isExpanded ? 'justify-start' : 'justify-center'
+                        )}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        title={!isExpanded ? `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode` : undefined}
                     >
-                        {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                    </button>
-                    <button
-                        onClick={() => setIsLogoutModalOpen(true)}
-                        className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-text-muted hover:text-text hover:bg-background transition-colors"
-                    >
-                        <LogOut className="w-4 h-4" />
-                        Logout
-                    </button>
+                        {theme === 'dark' ? <Sun className="w-5 h-5 flex-shrink-0" /> : <Moon className="w-5 h-5 flex-shrink-0" />}
+                        <AnimatePresence mode="wait">
+                            {isExpanded && (
+                                <motion.span
+                                    initial={{ opacity: 0, width: 0 }}
+                                    animate={{ opacity: 1, width: 'auto' }}
+                                    exit={{ opacity: 0, width: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="overflow-hidden"
+                                >
+                                    {theme === 'dark' ? 'Light' : 'Dark'} mode
+                                </motion.span>
+                            )}
+                        </AnimatePresence>
+                    </motion.button>
+                </div>
+
+                {/* User Profile */}
+                <div className="p-2 border-t border-border">
+                    <AnimatePresence mode="wait">
+                        {isExpanded ? (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="space-y-0.5"
+                            >
+                                {/* User Info */}
+                                <div className="flex items-center gap-3 px-3 py-2.5">
+                                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                                        <User className="w-4 h-4 text-white" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-text truncate">
+                                            {user?.displayName || user?.email?.split('@')[0] || 'User'}
+                                        </p>
+                                        <p className="text-xs text-text-muted truncate">{user?.email}</p>
+                                    </div>
+                                </div>
+
+                                {/* Logout */}
+                                <motion.button
+                                    onClick={() => setIsLogoutModalOpen(true)}
+                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-text-muted hover:bg-sidebar-hover hover:text-text transition-all duration-200"
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                >
+                                    <LogOut className="w-5 h-5" />
+                                    <span>Log out</span>
+                                </motion.button>
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="space-y-0.5"
+                            >
+                                {/* User Avatar */}
+                                <motion.button
+                                    className="w-full flex items-center justify-center p-2.5 rounded-lg text-text-muted hover:bg-sidebar-hover hover:text-text transition-all duration-200"
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    title={user?.displayName || user?.email || 'User'}
+                                >
+                                    <User className="w-5 h-5" />
+                                </motion.button>
+
+                                {/* Logout */}
+                                <motion.button
+                                    onClick={() => setIsLogoutModalOpen(true)}
+                                    className="w-full flex items-center justify-center p-2.5 rounded-lg text-text-muted hover:bg-sidebar-hover hover:text-text transition-all duration-200"
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    title="Log out"
+                                >
+                                    <LogOut className="w-5 h-5" />
+                                </motion.button>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             </div>
 
@@ -124,6 +505,6 @@ export function Sidebar({ variant }: SidebarProps) {
                 isOpen={isLogoutModalOpen}
                 onClose={() => setIsLogoutModalOpen(false)}
             />
-        </aside>
+        </motion.aside>
     )
 }

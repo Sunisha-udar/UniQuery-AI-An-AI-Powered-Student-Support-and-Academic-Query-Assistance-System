@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useRef, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import type { User as SupabaseUser, AuthChangeEvent, Session } from '@supabase/supabase-js'
 
@@ -44,6 +44,12 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
     const [user, setUser] = useState<User | null>(null)
     const [loading, setLoading] = useState(true)
+    const userRef = useRef<User | null>(null)
+
+    // Keep ref in sync with state to avoid stale closures in event listeners
+    useEffect(() => {
+        userRef.current = user
+    }, [user])
 
     // Fetch user profile from Supabase profiles table
     const fetchUserProfile = async (supabaseUser: SupabaseUser): Promise<User> => {
@@ -56,7 +62,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         try {
             console.log('[Auth] Fetching user profile for:', supabaseUser.id)
 
-            const timeoutPromise = new Promise<never>((_, reject) => 
+            const timeoutPromise = new Promise<never>((_, reject) =>
                 setTimeout(() => reject(new Error('Profile fetch timeout')), 3000)
             )
 
@@ -69,8 +75,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
             const { data: profile, error } = await Promise.race([fetchPromise, timeoutPromise])
 
             if (error) {
+                // Check specifically for "No rows found" error (Supabase/PostgREST code PGRST116)
+                if (error.code === 'PGRST116') {
+                    console.log('[Auth] No profile found, defaulting to student role')
+                    return defaultUser
+                }
+
+                // For any other error (network, timeout, etc.), throw it to prevent partial state
                 console.error('[Auth] Error fetching profile:', error)
-                return defaultUser
+                throw error
             }
 
             console.log('[Auth] Profile data:', profile)
@@ -89,7 +102,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
             }
         } catch (error) {
             console.error('[Auth] Error in fetchUserProfile:', error)
-            return defaultUser
+            // Re-throw to be handled by caller
+            throw error
         }
     }
 
@@ -99,7 +113,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const initializeAuth = async () => {
             try {
                 console.log('[Auth] Initializing authentication...')
-                
+
                 const { data: { session }, error } = await supabase.auth.getSession()
 
                 if (error) {
@@ -137,27 +151,45 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
                 if (!mounted) return
 
-                if (event === 'SIGNED_IN' && session?.user) {
-                    const userProfile = await fetchUserProfile(session.user)
-                    if (mounted) {
-                        setUser(userProfile)
-                        setLoading(false)
-                    }
-                } else if (event === 'SIGNED_OUT') {
-                    if (mounted) {
-                        setUser(null)
-                        setLoading(false)
-                    }
-                } else if (event === 'INITIAL_SESSION') {
-                    if (session?.user && mounted) {
+                try {
+                    if (event === 'SIGNED_IN' && session?.user) {
                         const userProfile = await fetchUserProfile(session.user)
                         if (mounted) {
                             setUser(userProfile)
                             setLoading(false)
                         }
-                    } else if (mounted) {
-                        setLoading(false)
+                    } else if (event === 'SIGNED_OUT') {
+                        if (mounted) {
+                            setUser(null)
+                            setLoading(false)
+                        }
+                    } else if (event === 'INITIAL_SESSION') {
+                        if (session?.user && mounted) {
+                            const userProfile = await fetchUserProfile(session.user)
+                            if (mounted) {
+                                setUser(userProfile)
+                                setLoading(false)
+                            }
+                        } else if (mounted) {
+                            setLoading(false)
+                        }
                     }
+                } catch (error) {
+                    console.error('[Auth] Error handling auth state change:', error);
+
+                    // CRITICAL FIX: If fetch failed (e.g. timeout), but we have a valid session matching current user,
+                    // DO NOT logout or downgrade. Keep existing state.
+                    if (session?.user && userRef.current && userRef.current.uid === session.user.id) {
+                        console.warn('[Auth] Keeping existing user state despite fetch error');
+                        if (mounted) setLoading(false);
+                        return;
+                    }
+
+                    // If we can't verify the user, fallback to safe state (or you could choose to keep loading)
+                    // For now, if it's a new login that failed, we might want to let them stay on the "loading" screen or retry.
+                    // But to avoid getting stuck, we might have to settle for current state or null.
+
+                    if (mounted) setLoading(false);
                 }
             }
         )

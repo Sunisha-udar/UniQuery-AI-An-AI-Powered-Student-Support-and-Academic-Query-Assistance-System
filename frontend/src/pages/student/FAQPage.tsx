@@ -1,11 +1,11 @@
-import { DashboardLayout } from '../../components/layout/DashboardLayout'
+
 import { Card } from '../../components/ui/Card'
 import { HelpCircle } from 'lucide-react'
 
 export function FAQPage() {
     return (
-        <DashboardLayout variant="student">
-            <div className="space-y-6">
+        <div className="flex-1 h-full overflow-y-auto bg-background p-4 md:p-6">
+            <div className="w-full space-y-6">
                 <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
                         <HelpCircle className="w-5 h-5 text-primary" />
@@ -27,6 +27,6 @@ export function FAQPage() {
                     </div>
                 </Card>
             </div>
-        </DashboardLayout>
+        </div>
     )
 }

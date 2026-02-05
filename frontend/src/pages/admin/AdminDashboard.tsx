@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { DashboardLayout } from '../../components/layout/DashboardLayout'
+import { useNavigate } from 'react-router-dom'
+
 import { Card, CardContent, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { api } from '../../lib/api'
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react'
 
 export function AdminDashboard() {
+    const navigate = useNavigate()
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [stats, setStats] = useState({
@@ -47,8 +49,8 @@ export function AdminDashboard() {
     }
 
     return (
-        <DashboardLayout variant="admin">
-            <div className="space-y-6">
+        <div className="flex-1 h-full overflow-y-auto bg-background p-4 md:p-6">
+            <div className="w-full space-y-6">
                 {/* Header */}
                 <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -101,9 +103,9 @@ export function AdminDashboard() {
                             <h2 className="text-sm font-semibold text-text">Quick Actions</h2>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                            <Button 
+                            <Button
                                 className="w-full bg-primary hover:bg-primary-hover text-white justify-start"
-                                onClick={() => window.location.href = '/admin/documents'}
+                                onClick={() => navigate('/admin/documents')}
                             >
                                 <FileText className="w-4 h-4 mr-2" />
                                 Manage Documents
@@ -145,6 +147,6 @@ export function AdminDashboard() {
                     </CardContent>
                 </Card>
             </div>
-        </DashboardLayout>
+        </div>
     )
 }

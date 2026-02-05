@@ -1,5 +1,5 @@
 import { useState, type FormEvent, useMemo } from 'react'
-import { DashboardLayout } from '../../components/layout/DashboardLayout'
+
 import { Card, CardContent, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
@@ -42,7 +42,7 @@ export function AdminSettings() {
     // Calculate changes based on current section
     const changes = useMemo(() => {
         const changesList: Array<{ field: string; oldValue: string; newValue: string }> = []
-        
+
         if (currentSection === 'general') {
             if (generalSettings.siteName !== initialGeneralSettings.siteName) {
                 changesList.push({
@@ -131,7 +131,7 @@ export function AdminSettings() {
                 })
             }
         }
-        
+
         return changesList
     }, [currentSection, generalSettings, initialGeneralSettings, emailSettings, initialEmailSettings, aiSettings, initialAISettings])
 
@@ -144,19 +144,19 @@ export function AdminSettings() {
 
     const handleConfirmSave = async () => {
         setSuccess('')
-        
+
         // Simulate save
         await new Promise(resolve => setTimeout(resolve, 1000))
-        
-        const sectionName = currentSection === 'general' ? 'General' : 
-                           currentSection === 'email' ? 'Email' : 'AI'
+
+        const sectionName = currentSection === 'general' ? 'General' :
+            currentSection === 'email' ? 'Email' : 'AI'
         setSuccess(`${sectionName} settings saved successfully!`)
         setTimeout(() => setSuccess(''), 3000)
     }
 
     return (
-        <DashboardLayout variant="admin">
-            <div className="space-y-6">
+        <div className="flex-1 h-full overflow-y-auto bg-background p-4 md:p-6">
+            <div className="w-full space-y-6">
                 {/* Header */}
                 <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -377,6 +377,6 @@ export function AdminSettings() {
                     changes={changes}
                 />
             </div>
-        </DashboardLayout>
+        </div>
     )
 }

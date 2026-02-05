@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { DashboardLayout } from '../../components/layout/DashboardLayout'
+
 import { Button } from '../../components/ui/Button'
 import { Card, CardContent, CardHeader } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
@@ -143,8 +143,9 @@ export function AdminDocuments() {
 
 
     return (
-        <DashboardLayout variant="admin">
-            <div className="space-y-6">
+
+        <div className="flex-1 h-full overflow-y-auto bg-background p-4 md:p-6">
+            <div className="w-full space-y-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -357,8 +358,8 @@ export function AdminDocuments() {
                                             <Upload className="w-8 h-8 text-text-muted mx-auto mb-3 pointer-events-none" />
                                             {selectedFile ? (
                                                 <div className="pointer-events-none">
-                                                    <p className="text-sm text-text font-medium mb-1">{selectedFile.name}</p>
-                                                    <p className="text-xs text-text-muted">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                                                    <p className="text-sm text-text font-medium mb-1">{selectedFile?.name}</p>
+                                                    <p className="text-xs text-text-muted">{(selectedFile?.size / 1024 / 1024).toFixed(2)} MB</p>
                                                 </div>
                                             ) : (
                                                 <div className="pointer-events-none">
@@ -413,6 +414,6 @@ export function AdminDocuments() {
                     </div>
                 )}
             </div>
-        </DashboardLayout>
+        </div>
     )
 }

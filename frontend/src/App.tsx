@@ -12,6 +12,7 @@ import { AdminAnalytics } from './pages/admin/AdminAnalytics'
 import { AdminSettings } from './pages/admin/AdminSettings'
 import { SettingsPage } from './pages/student/SettingsPage'
 import { FAQPage } from './pages/student/FAQPage'
+import { DashboardLayoutWrapper } from './components/layout/DashboardLayoutWrapper'
 import './index.css'
 
 function App() {
@@ -25,72 +26,28 @@ function App() {
             <Route path="/signup" element={<SignupPage />} />
 
             {/* Student Routes */}
-            <Route
-              path="/student"
-              element={
-                <ProtectedRoute allowedRoles={['student']}>
-                  <StudentDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/student/settings"
-              element={
-                <ProtectedRoute allowedRoles={['student']}>
-                  <SettingsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/student/faqs"
-              element={
-                <ProtectedRoute allowedRoles={['student']}>
-                  <FAQPage />
-                </ProtectedRoute>
-              }
-            />
+            <Route element={
+              <ProtectedRoute allowedRoles={['student']}>
+                <DashboardLayoutWrapper variant="student" />
+              </ProtectedRoute>
+            }>
+              <Route path="/student" element={<StudentDashboard />} />
+              <Route path="/student/settings" element={<SettingsPage />} />
+              <Route path="/student/faqs" element={<FAQPage />} />
+            </Route>
 
             {/* Admin Routes */}
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/documents"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminDocuments />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/queries"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminQueries />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/analytics"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminAnalytics />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/settings"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminSettings />
-                </ProtectedRoute>
-              }
-            />
+            <Route element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <DashboardLayoutWrapper variant="admin" />
+              </ProtectedRoute>
+            }>
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/documents" element={<AdminDocuments />} />
+              <Route path="/admin/queries" element={<AdminQueries />} />
+              <Route path="/admin/analytics" element={<AdminAnalytics />} />
+              <Route path="/admin/settings" element={<AdminSettings />} />
+            </Route>
 
             {/* Default redirect */}
             <Route path="/" element={<Navigate to="/login" replace />} />

@@ -1,11 +1,11 @@
-import { DashboardLayout } from '../../components/layout/DashboardLayout'
+
 import { Card, CardContent } from '../../components/ui/Card'
 import { BarChart3 } from 'lucide-react'
 
 export function AdminAnalytics() {
     return (
-        <DashboardLayout variant="admin">
-            <div className="space-y-6">
+        <div className="flex-1 h-full overflow-y-auto bg-background p-4 md:p-6">
+            <div className="w-full space-y-6">
                 {/* Header */}
                 <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -28,6 +28,6 @@ export function AdminAnalytics() {
                     </CardContent>
                 </Card>
             </div>
-        </DashboardLayout>
+        </div>
     )
 }

@@ -1,5 +1,5 @@
 import { useState, type FormEvent, useMemo } from 'react'
-import { DashboardLayout } from '../../components/layout/DashboardLayout'
+
 import { useAuth } from '../../contexts/AuthContext'
 import { Card, CardContent, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
@@ -26,7 +26,7 @@ export function SettingsPage() {
     // Calculate changes for the modal
     const changes = useMemo(() => {
         const changesList: Array<{ field: string; oldValue: string; newValue: string }> = []
-        
+
         if (formData.displayName !== (user?.displayName || '')) {
             changesList.push({
                 field: 'displayName',
@@ -76,7 +76,7 @@ export function SettingsPage() {
                 newValue: formData.semester
             })
         }
-        
+
         return changesList
     }, [formData, user])
 
@@ -84,7 +84,7 @@ export function SettingsPage() {
         e.preventDefault()
         setError('')
         setSuccess('')
-        
+
         // Show confirmation modal
         setShowSaveModal(true)
     }
@@ -102,8 +102,8 @@ export function SettingsPage() {
     }
 
     return (
-        <DashboardLayout variant="student">
-            <div className="space-y-6">
+        <div className="flex-1 h-full overflow-y-auto bg-background p-4 md:p-6">
+            <div className="w-full space-y-6">
                 <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
                         <Settings className="w-5 h-5 text-primary" />
@@ -227,7 +227,7 @@ export function SettingsPage() {
                     changes={changes}
                 />
             </div>
-        </DashboardLayout>
+        </div>
     )
 }
 

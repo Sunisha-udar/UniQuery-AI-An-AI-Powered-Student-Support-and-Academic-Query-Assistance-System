@@ -36,6 +36,12 @@
   --color-accent: #0d9488;
   /* Teal 600 */
 
+  /* CTA Button */
+  --color-cta: #2563eb;
+  /* Blue 600 */
+  --color-cta-hover: #1d4ed8;
+  /* Blue 700 */
+
   /* Text Colors */
   --color-text: #0f172a;
   /* Slate 900 */
@@ -68,6 +74,11 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
   --shadow-glow: 0 0 15px -3px var(--color-primary-glow);
+
+  /* Gradient Presets */
+  --gradient-primary: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  --gradient-accent: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-accent) 100%);
+  --gradient-mesh: radial-gradient(circle at 15% 50%, var(--color-primary-glow), transparent 25%), radial-gradient(circle at 85% 30%, rgba(20, 184, 166, 0.05), transparent 25%);
 }
 
 /* === DARK THEME OVERRIDES === */
@@ -94,10 +105,16 @@
   /* Blue 400 */
   --color-primary-glow: rgba(59, 130, 246, 0.5);
 
-  --color-secondary: #0ea5e9;
+  --color-secondary: #3b82f6;
   /* Sky 500 */
   --color-accent: #14b8a6;
   /* Teal 500 */
+
+  /* CTA Button */
+  --color-cta: #3b82f6;
+  /* Blue 500 */
+  --color-cta-hover: #60a5fa;
+  /* Blue 400 */
 
   /* Text Colors */
   --color-text: #f8fafc;
@@ -220,6 +237,55 @@ body {
 
 .animate-fade-in-up {
   animation: fade-in-up 0.5s ease-out forwards;
+}
+
+@keyframes gradient-shift {
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 6s ease infinite;
+}
+
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px var(--color-primary-glow);
+  }
+
+  50% {
+    box-shadow: 0 0 40px var(--color-primary-glow);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
 }
 
 /* Autofill Overrides */
