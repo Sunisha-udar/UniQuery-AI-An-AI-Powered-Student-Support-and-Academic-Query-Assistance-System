@@ -2,7 +2,7 @@
 import { Card, CardContent } from '../../components/ui/Card'
 import { BarChart3, MessageSquare, TrendingUp, AlertCircle, FileText } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { getAllChatSessionsForAdmin, type ChatMessage } from '../../lib/chatHistory'
+import { getAllUserQueries } from '../../lib/chatHistory'
 import { api } from '../../lib/api'
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -19,7 +19,7 @@ interface AnalyticsData {
     topLowConfidenceQuestions: { question: string; confidence: number }[]
 }
 
-const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#6366f1']
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'] // Premium Blue, Emerald, Amber, Rose
 
 export function AdminAnalytics() {
     const [analytics, setAnalytics] = useState<AnalyticsData>({
@@ -42,8 +42,9 @@ export function AdminAnalytics() {
         try {
             setLoading(true)
 
-            // Fetch chat sessions
-            const sessions = await getAllChatSessionsForAdmin(200)
+            // Fetch user queries
+            const queries = await getAllUserQueries(500) // Increase limit for better stats
+            console.log('[AdminAnalytics] Fetched queries:', queries.length)
 
             // Fetch documents count
             let documentCount = 0
@@ -55,26 +56,18 @@ export function AdminAnalytics() {
             }
 
             // Process analytics
-            const allMessages: (ChatMessage & { sessionId: string })[] = []
-            sessions.forEach(session => {
-                session.messages.forEach(msg => {
-                    allMessages.push({ ...msg, sessionId: session.id })
-                })
-            })
-
-            const userQueries = allMessages.filter(m => m.type === 'user')
-            const assistantResponses = allMessages.filter(m => m.type === 'assistant')
+            const totalQueries = queries.length
 
             // Calculate confidence stats
-            const confidenceScores = assistantResponses
-                .filter(m => m.confidence !== undefined)
-                .map(m => m.confidence!)
+            const confidenceScores = queries
+                .filter((q) => q.confidence !== undefined && q.confidence !== null)
+                .map((q) => q.confidence)
 
             const avgConfidence = confidenceScores.length > 0
                 ? confidenceScores.reduce((acc, val) => acc + val, 0) / confidenceScores.length
                 : 0
 
-            const lowConfidenceCount = confidenceScores.filter(c => c < 0.7).length
+            const lowConfidenceCount = confidenceScores.filter((c) => c < 0.7).length
 
             // Volume by day (last 7 days)
             const last7Days = Array.from({ length: 7 }, (_, i) => {
@@ -84,8 +77,8 @@ export function AdminAnalytics() {
             })
 
             const volumeByDay = last7Days.map(date => {
-                const count = userQueries.filter(q => {
-                    const qDate = new Date(q.timestamp).toISOString().split('T')[0]
+                const count = queries.filter((q) => {
+                    const qDate = new Date(q.created_at).toISOString().split('T')[0]
                     return qDate === date
                 }).length
                 return {
@@ -95,10 +88,10 @@ export function AdminAnalytics() {
             })
 
             // Confidence distribution
-            const highConf = confidenceScores.filter(c => c >= 0.9).length
-            const medConf = confidenceScores.filter(c => c >= 0.7 && c < 0.9).length
-            const lowConf = confidenceScores.filter(c => c < 0.7).length
-            const noConf = assistantResponses.length - confidenceScores.length
+            const highConf = confidenceScores.filter((c) => c >= 0.9).length
+            const medConf = confidenceScores.filter((c) => c >= 0.7 && c < 0.9).length
+            const lowConf = confidenceScores.filter((c) => c < 0.7).length
+            const noConf = totalQueries - confidenceScores.length
 
             const confidenceDistribution = [
                 { name: 'High (>90%)', value: highConf },
@@ -108,24 +101,16 @@ export function AdminAnalytics() {
             ].filter(d => d.value > 0)
 
             // Top low confidence questions
-            const lowConfQuestions = assistantResponses
-                .filter(m => m.confidence !== undefined && m.confidence < 0.7)
-                .map(m => {
-                    // Find the corresponding user question
-                    const msgIndex = allMessages.findIndex(msg =>
-                        msg.sessionId === m.sessionId && msg.id === m.id
-                    )
-                    const userMsg = msgIndex > 0 ? allMessages[msgIndex - 1] : null
-
-                    return {
-                        question: userMsg?.text || 'Unknown question',
-                        confidence: m.confidence!
-                    }
-                })
+            const lowConfQuestions = queries
+                .filter((q) => q.confidence !== undefined && q.confidence !== null && q.confidence < 0.7)
+                .map((q) => ({
+                    question: q.question,
+                    confidence: q.confidence
+                }))
                 .slice(0, 5) // Top 5
 
             setAnalytics({
-                totalQueries: userQueries.length,
+                totalQueries,
                 avgConfidence,
                 lowConfidenceCount,
                 totalDocuments: documentCount,
@@ -256,10 +241,18 @@ export function AdminAnalytics() {
                                                     contentStyle={{
                                                         backgroundColor: '#1a1a1a',
                                                         border: '1px solid #333',
-                                                        borderRadius: '8px'
+                                                        borderRadius: '8px',
+                                                        color: '#fff'
                                                     }}
+                                                    itemStyle={{ color: '#fff' }}
+                                                    labelStyle={{ color: '#fff' }}
                                                 />
-                                                <Bar dataKey="queries" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
+                                                <Bar
+                                                    dataKey="queries"
+                                                    fill="#3b82f6"
+                                                    radius={[6, 6, 0, 0]}
+                                                    activeBar={{ fill: '#2563eb', stroke: '#3b82f6', strokeWidth: 1 }}
+                                                />
                                             </BarChart>
                                         </ResponsiveContainer>
                                     ) : (
@@ -295,8 +288,11 @@ export function AdminAnalytics() {
                                                     contentStyle={{
                                                         backgroundColor: '#1a1a1a',
                                                         border: '1px solid #333',
-                                                        borderRadius: '8px'
+                                                        borderRadius: '8px',
+                                                        color: '#fff'
                                                     }}
+                                                    itemStyle={{ color: '#fff' }}
+                                                    labelStyle={{ color: '#fff' }}
                                                 />
                                             </PieChart>
                                         </ResponsiveContainer>

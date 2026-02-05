@@ -1,8 +1,10 @@
 
 import { Card, CardContent } from '../../components/ui/Card'
-import { MessageSquare, User, Clock, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { MessageSquare, User, Clock, TrendingUp, TrendingDown, Minus, Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { getAllChatSessionsForAdmin, type ChatMessage } from '../../lib/chatHistory'
+import { getAllUserQueries } from '../../lib/chatHistory'
+import { Button } from '../../components/ui/Button'
+import { clsx } from 'clsx'
 
 interface QueryWithDetails {
     id: string
@@ -16,6 +18,9 @@ export function AdminQueries() {
     const [queries, setQueries] = useState<QueryWithDetails[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [searchQuery, setSearchQuery] = useState('')
+    const [currentPage, setCurrentPage] = useState(1)
+    const ITEMS_PER_PAGE = 10
     // Placeholder for future "View Chat" modal
     // const [selectedChat, setSelectedChat] = useState<ChatSession | null>(null)
 
@@ -26,26 +31,19 @@ export function AdminQueries() {
     const loadQueries = async () => {
         try {
             setLoading(true)
-            const sessions = await getAllChatSessionsForAdmin(100)
+            const userQueries = await getAllUserQueries(200) // Fetch more for pagination
+            console.log('[AdminQueries] Fetched queries:', userQueries.length)
 
             // Extract all user questions with their metadata
-            const allQueries: QueryWithDetails[] = []
+            const allQueries: QueryWithDetails[] = userQueries.map((q) => ({
+                id: q.id,
+                userId: q.user_id,
+                question: q.question,
+                timestamp: new Date(q.created_at),
+                confidence: q.confidence
+            }))
 
-            sessions.forEach(session => {
-                session.messages.forEach((msg: ChatMessage) => {
-                    if (msg.type === 'user') {
-                        allQueries.push({
-                            id: session.id,
-                            userId: session.userId,
-                            question: msg.text,
-                            timestamp: new Date(msg.timestamp),
-                            confidence: session.messages.find(
-                                (m: ChatMessage) => m.type === 'assistant' && m.timestamp > msg.timestamp
-                            )?.confidence
-                        })
-                    }
-                })
-            })
+            console.log('[AdminQueries] Extracted queries:', allQueries.length)
 
             // Sort by most recent
             allQueries.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
@@ -59,6 +57,20 @@ export function AdminQueries() {
             setLoading(false)
         }
     }
+
+    const filteredQueries = queries.filter(q =>
+        q.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        q.userId.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+
+    const totalPages = Math.ceil(filteredQueries.length / ITEMS_PER_PAGE)
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+    const paginatedQueries = filteredQueries.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+
+    // Reset to page 1 when search changes
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [searchQuery])
 
     const getConfidenceBadge = (confidence?: number) => {
         if (confidence === undefined) {
@@ -137,7 +149,7 @@ export function AdminQueries() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm text-text-muted">Total Queries</p>
-                                    <p className="text-2xl font-bold text-text mt-1">{queries.length}</p>
+                                    <p className="text-2xl font-bold text-text mt-1">{filteredQueries.length}</p>
                                 </div>
                                 <MessageSquare className="w-8 h-8 text-primary opacity-50" />
                             </div>
@@ -150,12 +162,12 @@ export function AdminQueries() {
                                 <div>
                                     <p className="text-sm text-text-muted">Avg Confidence</p>
                                     <p className="text-2xl font-bold text-text mt-1">
-                                        {queries.filter(q => q.confidence !== undefined).length > 0
+                                        {filteredQueries.filter(q => q.confidence !== undefined).length > 0
                                             ? Math.round(
-                                                queries
+                                                filteredQueries
                                                     .filter(q => q.confidence !== undefined)
                                                     .reduce((acc, q) => acc + (q.confidence || 0), 0) /
-                                                queries.filter(q => q.confidence !== undefined).length *
+                                                filteredQueries.filter(q => q.confidence !== undefined).length *
                                                 100
                                             ) + '%'
                                             : 'N/A'}
@@ -172,7 +184,7 @@ export function AdminQueries() {
                                 <div>
                                     <p className="text-sm text-text-muted">Low Confidence</p>
                                     <p className="text-2xl font-bold text-text mt-1">
-                                        {queries.filter(q => q.confidence !== undefined && q.confidence < 0.7).length}
+                                        {filteredQueries.filter(q => q.confidence !== undefined && q.confidence < 0.7).length}
                                     </p>
                                 </div>
                                 <TrendingDown className="w-8 h-8 text-red-500 opacity-50" />
@@ -180,6 +192,26 @@ export function AdminQueries() {
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* Filters */}
+                <Card>
+                    <CardContent className="py-4">
+                        <div className="flex flex-wrap items-center gap-4">
+                            <div className="flex-1 min-w-[200px]">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search queries by question or user ID..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="w-full h-10 pl-10 pr-4 rounded-lg border border-border bg-surface text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
 
                 {/* Queries Table */}
                 <Card className="border border-border shadow-sm">
@@ -223,7 +255,7 @@ export function AdminQueries() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-border">
-                                        {queries.map((query, idx) => (
+                                        {paginatedQueries.map((query, idx) => (
                                             <tr key={`${query.id}-${idx}`} className="hover:bg-muted/20 transition-colors">
                                                 <td className="px-4 py-3">
                                                     <div className="flex items-center gap-2">
@@ -256,6 +288,47 @@ export function AdminQueries() {
                             </div>
                         )}
                     </CardContent>
+                    {filteredQueries.length > ITEMS_PER_PAGE && (
+                        <div className="px-5 py-4 border-t border-border flex items-center justify-between">
+                            <p className="text-sm text-text-muted">
+                                Showing {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, filteredQueries.length)} of {filteredQueries.length}
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                >
+                                    Previous
+                                </Button>
+                                <div className="hidden md:flex items-center gap-1">
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                        <button
+                                            key={page}
+                                            onClick={() => setCurrentPage(page)}
+                                            className={clsx(
+                                                'w-8 h-8 rounded-lg text-sm font-medium transition-colors',
+                                                currentPage === page
+                                                    ? 'bg-primary text-white'
+                                                    : 'text-text-muted hover:bg-background hover:text-text'
+                                            )}
+                                        >
+                                            {page}
+                                        </button>
+                                    ))}
+                                </div>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages}
+                                >
+                                    Next
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </Card>
             </div>
         </div>

@@ -31,8 +31,10 @@
   /* Blue 700 */
   --color-primary-glow: rgba(37, 99, 235, 0.2);
 
-  --color-secondary: #0284c7;
+  --color-secondary: #2563EB;
   /* Sky 600 */
+  --color-secondary-foreground: #ffffff;
+  /* White text on secondary bg */
   --color-accent: #0d9488;
   /* Teal 600 */
 
@@ -107,6 +109,8 @@
 
   --color-secondary: #3b82f6;
   /* Sky 500 */
+  --color-secondary-foreground: #ffffff;
+  /* White text on secondary bg */
   --color-accent: #14b8a6;
   /* Teal 500 */
 

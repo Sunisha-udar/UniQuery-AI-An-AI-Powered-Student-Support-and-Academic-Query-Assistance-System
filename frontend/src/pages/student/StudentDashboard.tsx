@@ -2,11 +2,14 @@ import { useState, type FormEvent, useRef, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { api, type Citation } from '../../lib/api'
-import { createChatSession, addMessageToSession, loadChatSessions, updateSessionTitle } from '../../lib/chatHistory'
+import { createChatSession, addMessageToSession, loadChatSessions, updateSessionTitle, saveUserQuery } from '../../lib/chatHistory'
 import { PlaceholdersAndVanishInput } from '../../components/ui/placeholders-and-vanish-input'
 import {
     AlertCircle
 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import remarkBreaks from 'remark-breaks'
 
 interface Message {
     id: string
@@ -194,6 +197,16 @@ export function StudentDashboard() {
             if (isNewSession) {
                 navigate(`/student?session=${sessionId}`, { replace: true })
             }
+
+            // Save for analytics in background
+            saveUserQuery(
+                user.uid,
+                sessionId,
+                currentQuery,
+                assistantMsg.text,
+                assistantMsg.confidence || 0,
+                assistantMsg.citations
+            )
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to get answer')
             console.error('Query error:', err)
@@ -238,7 +251,17 @@ export function StudentDashboard() {
                                     <div className={`${msg.type === 'user'
                                         ? 'bg-secondary text-secondary-foreground rounded-2xl px-5 py-3'
                                         : 'px-2 py-1'}`}>
-                                        <div className={`text-sm leading-relaxed whitespace-pre-wrap ${msg.type === 'assistant' ? 'text-text' : 'text-inherit'}`}>{msg.text}</div>
+                                        <div className={`text-sm leading-relaxed ${msg.type === 'assistant' ? 'text-text' : 'text-inherit'} prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-li:my-0`}>
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm, remarkBreaks]}
+                                                components={{
+                                                    strong: ({ node, ...props }: any) => <span className="font-semibold text-primary bg-primary/10 px-1 rounded" {...props} />,
+                                                    em: ({ node, ...props }: any) => <span className="font-semibold text-primary bg-primary/10 px-1 rounded not-italic" {...props} />
+                                                }}
+                                            >
+                                                {msg.text}
+                                            </ReactMarkdown>
+                                        </div>
                                     </div>
 
                                     {msg.type === 'assistant' && msg.citations && msg.citations.length > 0 && (
@@ -263,9 +286,16 @@ export function StudentDashboard() {
                         {streamingMessage && (
                             <div className="flex justify-start">
                                 <div className="max-w-full px-2 py-1">
-                                    <div className="text-sm leading-relaxed text-text whitespace-pre-wrap">
-                                        {displayedText}
-                                        <span className="inline-block w-0.5 h-4 bg-primary ml-1 animate-pulse"></span>
+                                    <div className="text-sm leading-relaxed text-text prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-li:my-0">
+                                        <ReactMarkdown
+                                            remarkPlugins={[remarkGfm, remarkBreaks]}
+                                            components={{
+                                                strong: ({ node, ...props }: any) => <span className="font-semibold text-primary bg-primary/10 px-1 rounded" {...props} />,
+                                                em: ({ node, ...props }: any) => <span className="font-semibold text-primary bg-primary/10 px-1 rounded not-italic" {...props} />
+                                            }}
+                                        >
+                                            {displayedText + (streamingMessage ? '▋' : '')}
+                                        </ReactMarkdown>
                                     </div>
                                 </div>
                             </div>

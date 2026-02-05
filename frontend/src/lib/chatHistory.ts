@@ -283,40 +283,74 @@ export async function clearAllChatSessions(userId: string): Promise<void> {
         throw error
     }
 }
+// ... existing code ...
 
 /**
- * Get all chat sessions across all users (admin only)
- * Limited to recent sessions for performance
+ * Save a user query for analytics
  */
-export async function getAllChatSessionsForAdmin(limit: number = 100): Promise<ChatSession[]> {
-    console.log('[ChatHistory] Loading all chat sessions for admin')
+export async function saveUserQuery(
+    userId: string,
+    sessionId: string,
+    question: string,
+    answer: string,
+    confidence: number,
+    citations?: any[]
+): Promise<void> {
+    console.log('[ChatHistory] Saving user query for analytics')
+    try {
+        const { error } = await supabase
+            .from('user_queries')
+            .insert({
+                user_id: userId,
+                session_id: sessionId,
+                question,
+                answer,
+                confidence,
+                citations
+            })
+
+        if (error) {
+            console.error('[ChatHistory] Error saving user query:', error)
+            // Don't throw, just log. Analytics shouldn't break the user flow.
+        } else {
+            console.log('[ChatHistory] User query saved for analytics')
+        }
+    } catch (error) {
+        console.error('[ChatHistory] Error in saveUserQuery:', error)
+    }
+}
+
+export interface UserQuery {
+    id: string
+    user_id: string
+    session_id: string
+    question: string
+    answer: string
+    confidence: number
+    citations: any
+    created_at: string
+}
+
+/**
+ * Get all user queries for admin analytics
+ */
+export async function getAllUserQueries(limit: number = 200): Promise<UserQuery[]> {
+    console.log('[ChatHistory] Loading user queries for admin')
     try {
         const { data, error } = await supabase
-            .from('chat_sessions')
+            .from('user_queries')
             .select('*')
-            .order('updated_at', { ascending: false })
+            .order('created_at', { ascending: false })
             .limit(limit)
 
         if (error) {
-            console.error('[ChatHistory] Error loading all sessions:', error)
+            console.error('[ChatHistory] Error loading user queries:', error)
             throw error
         }
 
-        console.log('[ChatHistory] Found', data.length, 'total sessions')
-
-        // Map to ChatSession format
-        const sessions: ChatSession[] = data.map((row: { id: string; user_id: string; messages: ChatMessage[]; title: string; created_at: string; updated_at: string }) => ({
-            id: row.id,
-            userId: row.user_id,
-            messages: row.messages || [],
-            title: row.title || 'Untitled Chat',
-            createdAt: row.created_at,
-            updatedAt: row.updated_at
-        }))
-
-        return sessions
+        return data as UserQuery[] || []
     } catch (error) {
-        console.error('[ChatHistory] Error loading all sessions:', error)
+        console.error('[ChatHistory] Error in getAllUserQueries:', error)
         throw error
     }
 }
