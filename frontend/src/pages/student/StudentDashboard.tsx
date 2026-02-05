@@ -54,7 +54,10 @@ export function StudentDashboard() {
                 index++
             } else {
                 clearInterval(interval)
-                setMessages(prev => [...prev, streamingMessage])
+                setMessages(prev => {
+                    if (prev.some(m => m.id === streamingMessage.id)) return prev
+                    return [...prev, streamingMessage]
+                })
                 setStreamingMessage(null)
                 setDisplayedText('')
             }
@@ -77,6 +80,12 @@ export function StudentDashboard() {
             try {
                 // If we have a session ID in URL, try to load it
                 if (querySessionId) {
+                    // Avoid reloading if we're already on this session (e.g. just created it)
+                    if (querySessionId === currentSessionId && messages.length > 0) {
+                        setIsLoadingHistory(false)
+                        return
+                    }
+
                     setCurrentSessionId(querySessionId)
                     // Messages will be loaded when sessions are loaded or we can fetch specific session
                     // For now, let's load all sessions and find the one we need
@@ -125,6 +134,17 @@ export function StudentDashboard() {
             sessionId = await createChatSession(user.uid)
             setCurrentSessionId(sessionId)
             isNewSession = true
+
+            // Notify sidebar to add new session immediately
+            const newSession = {
+                id: sessionId,
+                userId: user.uid,
+                messages: [],
+                title: 'New Chat',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            }
+            window.dispatchEvent(new CustomEvent('chat-session-created', { detail: newSession }))
         }
 
         const userMsg: Message = {
@@ -140,7 +160,7 @@ export function StudentDashboard() {
         setQuery('')
 
         try {
-            await addMessageToSession(sessionId, 'user', userMsg.text)
+            await addMessageToSession(sessionId, 'user', userMsg.text, undefined, undefined, userMsg.id)
 
             const result = await api.queryDocuments({
                 question: currentQuery,
@@ -159,10 +179,15 @@ export function StudentDashboard() {
 
             setIsTyping(false)
             setStreamingMessage(assistantMsg)
-            await addMessageToSession(sessionId, 'assistant', assistantMsg.text, assistantMsg.citations, assistantMsg.confidence)
+            await addMessageToSession(sessionId, 'assistant', assistantMsg.text, assistantMsg.citations, assistantMsg.confidence, assistantMsg.id)
 
-            if (messages.length === 0) {
-                await updateSessionTitle(sessionId, currentQuery.slice(0, 30) + (currentQuery.length > 30 ? '...' : ''))
+            if (messages.length === 0 || isNewSession) {
+                const title = currentQuery.slice(0, 30) + (currentQuery.length > 30 ? '...' : '')
+                await updateSessionTitle(sessionId, title)
+                // Notify sidebar to update title
+                window.dispatchEvent(new CustomEvent('chat-session-updated', {
+                    detail: { id: sessionId, title, updatedAt: new Date().toISOString() }
+                }))
             }
 
             // Update URL if it was a new session
@@ -213,7 +238,7 @@ export function StudentDashboard() {
                                     <div className={`${msg.type === 'user'
                                         ? 'bg-secondary text-secondary-foreground rounded-2xl px-5 py-3'
                                         : 'px-2 py-1'}`}>
-                                        <p className={`text-sm leading-relaxed ${msg.type === 'assistant' ? 'text-text' : 'text-inherit'}`}>{msg.text}</p>
+                                        <div className={`text-sm leading-relaxed whitespace-pre-wrap ${msg.type === 'assistant' ? 'text-text' : 'text-inherit'}`}>{msg.text}</div>
                                     </div>
 
                                     {msg.type === 'assistant' && msg.citations && msg.citations.length > 0 && (
@@ -238,10 +263,10 @@ export function StudentDashboard() {
                         {streamingMessage && (
                             <div className="flex justify-start">
                                 <div className="max-w-full px-2 py-1">
-                                    <p className="text-sm leading-relaxed text-text">
+                                    <div className="text-sm leading-relaxed text-text whitespace-pre-wrap">
                                         {displayedText}
                                         <span className="inline-block w-0.5 h-4 bg-primary ml-1 animate-pulse"></span>
-                                    </p>
+                                    </div>
                                 </div>
                             </div>
                         )}

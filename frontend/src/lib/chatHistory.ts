@@ -73,7 +73,8 @@ export async function addMessageToSession(
     type: 'user' | 'assistant',
     text: string,
     citations?: ChatMessage['citations'],
-    confidence?: number
+    confidence?: number,
+    id?: string
 ): Promise<void> {
     console.log('[ChatHistory] Adding message to session:', sessionId)
     try {
@@ -94,7 +95,7 @@ export async function addMessageToSession(
         }
 
         const message: ChatMessage = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            id: id || Date.now().toString() + Math.random().toString(36).substr(2, 9),
             type,
             text,
             citations: citations || [],
@@ -279,6 +280,43 @@ export async function clearAllChatSessions(userId: string): Promise<void> {
         console.log('[ChatHistory] All sessions cleared')
     } catch (error) {
         console.error('[ChatHistory] Error clearing sessions:', error)
+        throw error
+    }
+}
+
+/**
+ * Get all chat sessions across all users (admin only)
+ * Limited to recent sessions for performance
+ */
+export async function getAllChatSessionsForAdmin(limit: number = 100): Promise<ChatSession[]> {
+    console.log('[ChatHistory] Loading all chat sessions for admin')
+    try {
+        const { data, error } = await supabase
+            .from('chat_sessions')
+            .select('*')
+            .order('updated_at', { ascending: false })
+            .limit(limit)
+
+        if (error) {
+            console.error('[ChatHistory] Error loading all sessions:', error)
+            throw error
+        }
+
+        console.log('[ChatHistory] Found', data.length, 'total sessions')
+
+        // Map to ChatSession format
+        const sessions: ChatSession[] = data.map((row: { id: string; user_id: string; messages: ChatMessage[]; title: string; created_at: string; updated_at: string }) => ({
+            id: row.id,
+            userId: row.user_id,
+            messages: row.messages || [],
+            title: row.title || 'Untitled Chat',
+            createdAt: row.created_at,
+            updatedAt: row.updated_at
+        }))
+
+        return sessions
+    } catch (error) {
+        console.error('[ChatHistory] Error loading all sessions:', error)
         throw error
     }
 }

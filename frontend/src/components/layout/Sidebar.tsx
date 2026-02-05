@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { LogoutModal } from '../ui/LogoutModal'
+import { DeleteChatModal } from '../ui/DeleteChatModal'
 import { loadChatSessions, deleteChatSession, type ChatSession } from '../../lib/chatHistory'
 import {
     Settings,
@@ -56,6 +57,8 @@ export function Sidebar({
     const location = useLocation()
     const navigate = useNavigate()
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+    const [sessionToDelete, setSessionToDelete] = useState<ChatSession | null>(null)
     const [sessions, setSessions] = useState<ChatSession[]>([])
     const [loading, setLoading] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
@@ -65,34 +68,57 @@ export function Sidebar({
         if (variant === 'student' && user?.uid) {
             loadSessions()
         }
+
+        const handleSessionCreated = (e: Event) => {
+            const detail = (e as CustomEvent).detail
+            setSessions(prev => [detail, ...prev])
+        }
+
+        const handleSessionUpdated = (e: Event) => {
+            const detail = (e as CustomEvent).detail
+            setSessions(prev => prev.map(s =>
+                s.id === detail.id
+                    ? { ...s, title: detail.title, updatedAt: detail.updatedAt }
+                    : s
+            ))
+        }
+
+        window.addEventListener('chat-session-created', handleSessionCreated)
+        window.addEventListener('chat-session-updated', handleSessionUpdated)
+
+        return () => {
+            window.removeEventListener('chat-session-created', handleSessionCreated)
+            window.removeEventListener('chat-session-updated', handleSessionUpdated)
+        }
     }, [variant, user?.uid])
 
-    const loadSessions = async () => {
+    const loadSessions = async (silent = false) => {
         if (!user?.uid) return
         try {
-            setLoading(true)
+            if (!silent) setLoading(true)
             const loadedSessions = await loadChatSessions(user.uid)
             setSessions(loadedSessions)
         } catch (err) {
             console.error('Failed to load sessions:', err)
         } finally {
-            setLoading(false)
+            if (!silent) setLoading(false)
         }
     }
 
-    const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
+    const handleDeleteClick = (session: ChatSession, e: React.MouseEvent) => {
         e.stopPropagation()
-        if (!confirm('Delete this chat?')) return
+        setSessionToDelete(session)
+        setDeleteModalOpen(true)
+    }
 
-        try {
-            await deleteChatSession(sessionId)
-            setSessions(prev => prev.filter(s => s.id !== sessionId))
+    const handleDeleteConfirm = async () => {
+        if (!sessionToDelete) return
 
-            if (sessionId === currentSessionId) {
-                navigate('/student')
-            }
-        } catch (err) {
-            console.error('Failed to delete session:', err)
+        await deleteChatSession(sessionToDelete.id)
+        setSessions(prev => prev.filter(s => s.id !== sessionToDelete.id))
+
+        if (sessionToDelete.id === currentSessionId) {
+            navigate('/student')
         }
     }
 
@@ -305,7 +331,7 @@ export function Sidebar({
                                             <p className="text-xs opacity-60">{formatDate(session.updatedAt)}</p>
                                         </div>
                                         <button
-                                            onClick={(e) => handleDeleteSession(session.id, e)}
+                                            onClick={(e) => handleDeleteClick(session, e)}
                                             className="opacity-0 group-hover:opacity-100 p-1 hover:bg-surface rounded transition-all duration-200"
                                             aria-label="Delete chat"
                                         >
@@ -504,6 +530,12 @@ export function Sidebar({
             <LogoutModal
                 isOpen={isLogoutModalOpen}
                 onClose={() => setIsLogoutModalOpen(false)}
+            />
+            <DeleteChatModal
+                isOpen={deleteModalOpen}
+                onClose={() => setDeleteModalOpen(false)}
+                onConfirm={handleDeleteConfirm}
+                chatTitle={sessionToDelete?.title || ''}
             />
         </motion.aside>
     )

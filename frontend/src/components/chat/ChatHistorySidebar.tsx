@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { MessageSquare, Plus, Trash2 } from 'lucide-react'
 import { loadChatSessions, deleteChatSession, type ChatSession } from '../../lib/chatHistory'
+import { DeleteChatModal } from '../ui/DeleteChatModal'
 
 interface ChatHistorySidebarProps {
     userId: string
@@ -12,10 +13,22 @@ interface ChatHistorySidebarProps {
 export function ChatHistorySidebar({ userId, currentSessionId, onSelectSession, onNewChat }: ChatHistorySidebarProps) {
     const [sessions, setSessions] = useState<ChatSession[]>([])
     const [loading, setLoading] = useState(true)
-    const [] = useState<string | null>(null)
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+    const [sessionToDelete, setSessionToDelete] = useState<ChatSession | null>(null)
 
     useEffect(() => {
         loadSessions()
+
+        // Listen for updates from StudentDashboard
+        const handleSessionUpdate = () => {
+            loadSessions()
+        }
+
+        window.addEventListener('chat-session-updated', handleSessionUpdate)
+
+        return () => {
+            window.removeEventListener('chat-session-updated', handleSessionUpdate)
+        }
     }, [userId])
 
     const loadSessions = async () => {
@@ -30,20 +43,21 @@ export function ChatHistorySidebar({ userId, currentSessionId, onSelectSession, 
         }
     }
 
-    const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
+    const handleDeleteClick = (session: ChatSession, e: React.MouseEvent) => {
         e.stopPropagation()
-        if (!confirm('Delete this chat?')) return
+        setSessionToDelete(session)
+        setDeleteModalOpen(true)
+    }
 
-        try {
-            await deleteChatSession(sessionId)
-            setSessions(prev => prev.filter(s => s.id !== sessionId))
-            
-            // If deleting current session, create new one
-            if (sessionId === currentSessionId) {
-                onNewChat()
-            }
-        } catch (err) {
-            console.error('Failed to delete session:', err)
+    const handleDeleteConfirm = async () => {
+        if (!sessionToDelete) return
+
+        await deleteChatSession(sessionToDelete.id)
+        setSessions(prev => prev.filter(s => s.id !== sessionToDelete.id))
+
+        // If deleting current session, create new one
+        if (sessionToDelete.id === currentSessionId) {
+            onNewChat()
         }
     }
 
@@ -87,11 +101,10 @@ export function ChatHistorySidebar({ userId, currentSessionId, onSelectSession, 
                             <div
                                 key={session.id}
                                 onClick={() => onSelectSession(session.id)}
-                                className={`group relative flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
-                                    currentSessionId === session.id
+                                className={`group relative flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${currentSessionId === session.id
                                         ? 'bg-gray-100'
                                         : 'hover:bg-gray-50'
-                                }`}
+                                    }`}
                             >
                                 <MessageSquare className="w-4 h-4 flex-shrink-0 text-gray-400" />
                                 <div className="flex-1 min-w-0">
@@ -99,7 +112,7 @@ export function ChatHistorySidebar({ userId, currentSessionId, onSelectSession, 
                                     <p className="text-xs text-gray-500">{formatDate(session.updatedAt)}</p>
                                 </div>
                                 <button
-                                    onClick={(e) => handleDeleteSession(session.id, e)}
+                                    onClick={(e) => handleDeleteClick(session, e)}
                                     className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded transition-opacity"
                                     aria-label="Delete chat"
                                 >
@@ -117,6 +130,14 @@ export function ChatHistorySidebar({ userId, currentSessionId, onSelectSession, 
                     {sessions.length} {sessions.length === 1 ? 'chat' : 'chats'}
                 </p>
             </div>
+
+            {/* Delete Modal */}
+            <DeleteChatModal
+                isOpen={deleteModalOpen}
+                onClose={() => setDeleteModalOpen(false)}
+                onConfirm={handleDeleteConfirm}
+                chatTitle={sessionToDelete?.title || ''}
+            />
         </div>
     )
 }
