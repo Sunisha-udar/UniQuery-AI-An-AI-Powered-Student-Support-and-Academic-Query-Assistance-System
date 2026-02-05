@@ -33,6 +33,26 @@ class Document(BaseModel):
     pdf_url: Optional[str] = None
 
 
+class ManualAnswerRequest(BaseModel):
+    question: str
+    answer: str
+    category: str = "Manual Answer"
+    program: str = "All"
+    department: str = "All"
+    semester: int = 0
+    doc_id: Optional[str] = None  # If provided, updates existing answer
+
+
+class ExistingAnswerResponse(BaseModel):
+    exists: bool
+    doc_id: Optional[str] = None
+    answer: Optional[str] = None
+    category: Optional[str] = None
+    program: Optional[str] = None
+    department: Optional[str] = None
+    semester: Optional[int] = None
+
+
 @router.get("/", response_model=List[Document])
 async def list_documents(
     category: Optional[str] = None,
@@ -179,6 +199,234 @@ async def delete_document(doc_id: str):
     except Exception as e:
         logger.error(f"Error deleting document: {e}")
         raise HTTPException(status_code=500, detail=f"Error deleting document: {str(e)}")
+
+
+
+
+@router.get("/manual-answer/check", response_model=ExistingAnswerResponse)
+async def check_existing_answer(question: str, authorization: str = Header(None)):
+    """
+    Check if a manual answer already exists for the given question.
+    Returns the existing answer details if found.
+    """
+    try:
+        db_service = get_supabase_db_service()
+        
+        # Query Supabase for manual answers matching this question
+        # We'll search for documents with category "Manual Answer"
+        docs = db_service.list_documents(category="Manual Answer")
+        
+        # Find matching question (stored in title or we need to add question field)
+        for doc in docs:
+            # Fallback for legacy answers
+            stored_question = doc.get('title', '').replace('Manual Answer: ', '').replace('...', '').strip()
+            match_found = (question_text.startswith(stored_question) or stored_question in question_text)
+            
+            if match_found:
+                qdrant_service = get_qdrant_service()
+                doc_id = doc.get('doc_id')
+                
+                # Quick search to get answer chunks
+                results = qdrant_service.search(
+                    query=question,
+                    limit=3
+                )
+                
+                # Find chunks from this doc_id
+                answer_chunks = [r for r in results if r.get('doc_id') == doc_id]
+                
+                if answer_chunks:
+                    # Extract answer from first chunk (remove "Question:" prefix)
+                    full_text = answer_chunks[0].get('text', '')
+                    answer = full_text.split('Answer: ')[-1] if 'Answer: ' in full_text else full_text
+                    
+                    return ExistingAnswerResponse(
+                        exists=True,
+                        doc_id=doc_id,
+                        answer=answer,
+                        category=doc.get('category'),
+                        program=doc.get('program'),
+                        department=doc.get('department'),
+                        semester=doc.get('semester')
+                    )
+        
+        # No match found
+        return ExistingAnswerResponse(exists=False)
+        
+    except Exception as e:
+        logger.error(f"Error checking for existing answer: {e}")
+        return ExistingAnswerResponse(exists=False)
+
+
+@router.post("/manual-answer")
+async def submit_manual_answer(request: ManualAnswerRequest, authorization: str = Header(None)):
+    """
+    Submit a manual text answer for a low-confidence question.
+    If doc_id is provided, updates existing answer. Otherwise creates new.
+    """
+    try:
+        doc_processor = get_document_processor()
+        qdrant_service = get_qdrant_service()
+        db_service = get_supabase_db_service()
+        
+        # Check if this is an update or create
+        is_update = request.doc_id is not None
+        
+        if is_update:
+            logger.info(f"Updating existing manual answer: {request.doc_id}")
+            doc_id = request.doc_id
+            
+            # Delete old chunks from Qdrant
+            try:
+                deleted_count = qdrant_service.delete_by_doc_id(doc_id)
+                logger.info(f"Deleted {deleted_count} old chunks from Qdrant")
+            except Exception as delete_error:
+                logger.error(f"Error deleting old chunks: {delete_error}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to delete old answer chunks: {str(delete_error)}"
+                )
+        else:
+            # Generate unique doc_id for new manual answer
+            from datetime import datetime
+            import hashlib
+            unique_string = f"{request.question}_{request.answer}_{datetime.utcnow().isoformat()}"
+            doc_id = f"manual_{hashlib.md5(unique_string.encode()).hexdigest()[:16]}"
+            logger.info(f"Creating new manual answer document: {doc_id}")
+        
+        # Create synthetic title
+        title = f"Manual Answer: {request.question[:50]}..."
+        
+        # Generate document metadata
+        from datetime import datetime
+        doc_metadata = {
+            'title': title,
+            'category': request.category,
+            'program': request.program,
+            'department': request.department,
+            'semester': request.semester,
+            'version': 1,
+            'uploaded_at': datetime.utcnow().isoformat(),
+            'question': request.question,
+            'doc_id': doc_id
+        }
+        
+        # Chunk the answer text using the document processor
+        chunks_data = doc_processor.chunk_text(
+            text=f"Question: {request.question}\n\nAnswer: {request.answer}",
+            chunk_size=1000,
+            overlap=200
+        )
+        
+        logger.debug(f"Created {len(chunks_data)} chunks from manual answer")
+        
+        # Create metadata for each chunk
+        chunks = []
+        chunk_metadata = []
+        
+        for idx, chunk_text in enumerate(chunks_data):
+            chunk_id = f"{doc_id}_chunk_{idx}"
+            chunks.append(chunk_text)
+            chunk_metadata.append({
+                'id': chunk_id,
+                'program': request.program,
+                'department': request.department,
+                'semester': request.semester,
+                'category': request.category,
+                'doc_id': doc_id,
+                'page': idx + 1,
+                'title': title,
+                'version': 1
+            })
+        
+        # Insert into Qdrant
+        logger.debug(f"Inserting {len(chunks)} chunks into Qdrant...")
+        success = qdrant_service.insert_documents(chunks, chunk_metadata)
+        
+        if not success:
+            logger.error("Qdrant insertion returned False")
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to insert manual answer into vector database"
+            )
+        
+        # Save or update metadata in Supabase
+        supabase_data = {
+            'doc_id': doc_id,
+            'title': title,
+            'category': request.category,
+            'program': request.program,
+            'department': request.department,
+            'semester': request.semester,
+            'version': 1,
+            'chunk_count': len(chunks),
+            'storage_path': None,  # No PDF for manual answers
+            'uploaded_by': 'admin',
+        }
+        
+        if is_update:
+            # Update existing document metadata
+            logger.info(f"Updating manual answer metadata in Supabase...")
+            try:
+                db_service.update_document_metadata(doc_id, supabase_data)
+            except Exception as db_error:
+                # Rollback: Delete chunks from Qdrant
+                logger.error(f"Failed to update metadata: {db_error}")
+                logger.info(f"Rolling back: deleting {len(chunks)} chunks from Qdrant for doc_id: {doc_id}")
+                try:
+                    chunks_deleted = qdrant_service.delete_by_doc_id(doc_id)
+                    logger.info(f"Rollback successful: deleted {chunks_deleted} chunks")
+                except Exception as rollback_error:
+                    logger.error(f"Rollback failed: {rollback_error}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to update document metadata: {str(db_error)}"
+                )
+        else:
+            # Create new document metadata
+            logger.info(f"Saving manual answer metadata to Supabase...")
+            try:
+                db_service.create_document_metadata(supabase_data)
+            except Exception as db_error:
+                # Rollback: Delete orphaned vectors from Qdrant
+                logger.error(f"Failed to save metadata: {db_error}")
+                logger.info(f"Rolling back: deleting {len(chunks)} chunks from Qdrant for doc_id: {doc_id}")
+                try:
+                    chunks_deleted = qdrant_service.delete_by_doc_id(doc_id)
+                    logger.info(f"Rollback successful: deleted {chunks_deleted} chunks")
+                except Exception as rollback_error:
+                    logger.error(f"Rollback failed: {rollback_error}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to save document metadata: {str(db_error)}"
+                )
+        
+        logger.info(f"Manual answer '{title}' processed successfully ({'updated' if is_update else 'created'})")
+        
+        return {
+            "success": True,
+            "message": f"Manual answer for '{request.question}' {'updated' if is_update else 'submitted'} successfully",
+            "is_update": is_update,
+            "document": {
+                "id": doc_id,
+                "title": title,
+                "category": request.category,
+                "program": request.program,
+                "department": request.department,
+                "semester": request.semester,
+                "chunk_count": len(chunks)
+            }
+        }
+        
+    except HTTPException:
+        # Re-raise HTTPException to preserve original status codes
+        raise
+    except Exception as e:
+        logger.error(f"Error submitting manual answer: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error submitting manual answer: {str(e)}"
+        )
 
 
 @router.post("/upload")

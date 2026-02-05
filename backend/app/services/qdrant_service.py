@@ -12,7 +12,8 @@ from qdrant_client.models import (
     Filter,
     FieldCondition,
     MatchValue,
-    SearchRequest
+    SearchRequest,
+    PointIdsList
 )
 from app.services.voyage_embedding_service import get_voyage_embedding_service
 import logging
@@ -273,6 +274,57 @@ class QdrantService:
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
             return False
+    
+    def upsert_points(self, points: List[PointStruct]) -> bool:
+        """
+        Upsert raw PointStruct objects (used for restoration).
+        """
+        try:
+            if not points:
+                return True
+            
+            self.client.upsert(
+                collection_name=self.collection_name,
+                points=points
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error upserting raw points: {e}")
+            return False
+
+    def get_points_by_doc_id(self, doc_id: str) -> List[PointStruct]:
+        """
+        Fetch all raw points (including vectors) for a document.
+        Used for backup before update.
+        """
+        try:
+            points = []
+            offset = None
+            
+            while True:
+                result = self.client.scroll(
+                    collection_name=self.collection_name,
+                    scroll_filter=None,
+                    limit=100,
+                    offset=offset,
+                    with_payload=True,
+                    with_vectors=True
+                )
+                
+                batch_points, next_offset = result
+                
+                for point in batch_points:
+                    if point.payload.get('doc_id') == doc_id:
+                        points.append(point)
+                
+                if next_offset is None:
+                    break
+                offset = next_offset
+                
+            return points
+        except Exception as e:
+            logger.error(f"Error fetching points for doc_id {doc_id}: {e}")
+            return []
     
     def search(
         self,
