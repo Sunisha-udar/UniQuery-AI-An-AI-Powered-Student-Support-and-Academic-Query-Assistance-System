@@ -16,7 +16,19 @@ services:
         sync: false
       - key: QDRANT_COLLECTION_NAME
         value: uniquery
+      - key: VOYAGE_API_KEY
+        sync: false
+      - key: EMBEDDING_DIMENSION
+        value: "512"
       - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: "llama-3.3-70b-versatile"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: FIREBASE_PROJECT_ID
         sync: false
