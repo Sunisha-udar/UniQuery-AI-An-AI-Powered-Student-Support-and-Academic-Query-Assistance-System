@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 
-from app.routers import auth, query, documents
+from app.routers import auth, query, documents, debug
 from app.services.qdrant_service import get_qdrant_service
 from app.config import get_settings
 
@@ -77,6 +77,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(query.router, prefix="/api/query", tags=["Query"])
 app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
+app.include_router(debug.router, prefix="/api/debug", tags=["Debug"])
 
 
 @app.get("/")
@@ -93,12 +94,27 @@ async def root():
 @app.get("/api/health")
 async def health_check():
     """
-    Health check endpoint - returns immediately without blocking on Qdrant
+    Health check endpoint with Qdrant info
     """
-    return {
-        "status": "healthy",
-        "message": "Server is running"
-    }
+    try:
+        qdrant = get_qdrant_service()
+        collection_info = qdrant.get_collection_info()
+        
+        return {
+            "status": "healthy",
+            "services": {
+                "qdrant": {
+                    "status": "healthy",
+                    "collection": collection_info
+                }
+            }
+        }
+    except Exception as e:
+        logger.error(f"Health check error: {e}")
+        return {
+            "status": "healthy",
+            "message": "Server is running"
+        }
 
 
 @app.get("/api/health/detailed")
