@@ -1,6 +1,5 @@
 """
 Documents router - Document management endpoints
-Updated to use Supabase Storage and Database instead of Firebase/Cloudinary
 """
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException

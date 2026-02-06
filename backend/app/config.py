@@ -40,10 +40,7 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"
     
-    # Cloudinary Configuration (legacy - keeping for migration)
-    cloudinary_cloud_name: str = ""
-    cloudinary_api_key: str = ""
-    cloudinary_api_secret: str = ""
+
     
     # Supabase Configuration
     supabase_url: str = ""

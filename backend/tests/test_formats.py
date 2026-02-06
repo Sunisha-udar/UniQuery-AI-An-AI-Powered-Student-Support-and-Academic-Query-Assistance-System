@@ -68,7 +68,7 @@ def main():
     print("  1. Extracted for text")
     print("  2. Chunked and embedded")
     print("  3. Stored in Qdrant (searchable)")
-    print("  4. Uploaded to Cloudinary (downloadable)")
+    print("  4. Uploaded to Supabase Storage (downloadable)")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,5 @@
 """
 Supabase Storage Service - PDF storage and retrieval
-Replaces Cloudinary service with identical interface
 """
 
 from typing import Optional, Dict, List
