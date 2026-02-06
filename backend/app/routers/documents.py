@@ -2,7 +2,7 @@
 Documents router - Document management endpoints
 """
 
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Header
 from pydantic import BaseModel
 from typing import List, Optional
 import tempfile
