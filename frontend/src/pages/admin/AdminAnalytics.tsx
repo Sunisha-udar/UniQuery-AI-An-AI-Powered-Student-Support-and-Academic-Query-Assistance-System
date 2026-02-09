@@ -275,34 +275,57 @@ export function AdminAnalytics() {
                                 <CardContent className="p-6">
                                     <h3 className="text-lg font-semibold text-text mb-4">Confidence Distribution</h3>
                                     {analytics.confidenceDistribution.length > 0 ? (
-                                        <ResponsiveContainer width="100%" height={250}>
-                                            <PieChart>
-                                                <Pie
-                                                    data={analytics.confidenceDistribution}
-                                                    cx="50%"
-                                                    cy="50%"
-                                                    labelLine={false}
-                                                    label={({ name, percent }: { name?: string, percent?: number }) => `${name || 'Unknown'}: ${((percent || 0) * 100).toFixed(0)}%`}
-                                                    outerRadius={80}
-                                                    fill="#8884d8"
-                                                    dataKey="value"
-                                                >
-                                                    {analytics.confidenceDistribution.map((_, index) => (
-                                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                                    ))}
-                                                </Pie>
-                                                <Tooltip
-                                                    contentStyle={{
-                                                        backgroundColor: '#1a1a1a',
-                                                        border: '1px solid #333',
-                                                        borderRadius: '8px',
-                                                        color: '#fff'
-                                                    }}
-                                                    itemStyle={{ color: '#fff' }}
-                                                    labelStyle={{ color: '#fff' }}
-                                                />
-                                            </PieChart>
-                                        </ResponsiveContainer>
+                                        <div className="w-full overflow-hidden">
+                                            <ResponsiveContainer width="100%" height={250}>
+                                                <PieChart>
+                                                    <Pie
+                                                        data={analytics.confidenceDistribution}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        labelLine={false}
+                                                        label={({ name, percent }: { name?: string, percent?: number }) => {
+                                                            const percentage = ((percent || 0) * 100).toFixed(0);
+                                                            // On mobile, show shorter labels
+                                                            if (window.innerWidth < 768) {
+                                                                return `${percentage}%`;
+                                                            }
+                                                            return `${name || 'Unknown'}: ${percentage}%`;
+                                                        }}
+                                                        outerRadius={window.innerWidth < 768 ? 60 : 80}
+                                                        fill="#8884d8"
+                                                        dataKey="value"
+                                                    >
+                                                        {analytics.confidenceDistribution.map((_, index) => (
+                                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                        ))}
+                                                    </Pie>
+                                                    <Tooltip
+                                                        contentStyle={{
+                                                            backgroundColor: '#1a1a1a',
+                                                            border: '1px solid #333',
+                                                            borderRadius: '8px',
+                                                            color: '#fff'
+                                                        }}
+                                                        itemStyle={{ color: '#fff' }}
+                                                        labelStyle={{ color: '#fff' }}
+                                                    />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                            {/* Legend for mobile */}
+                                            <div className="mt-4 grid grid-cols-2 gap-2">
+                                                {analytics.confidenceDistribution.map((item, index) => (
+                                                    <div key={index} className="flex items-center gap-2">
+                                                        <div
+                                                            className="w-3 h-3 rounded-sm flex-shrink-0"
+                                                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                                                        />
+                                                        <span className="text-xs text-text-muted truncate">
+                                                            {item.name}: {item.value}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
                                     ) : (
                                         <div className="h-[250px] flex items-center justify-center text-text-muted">
                                             No data available
