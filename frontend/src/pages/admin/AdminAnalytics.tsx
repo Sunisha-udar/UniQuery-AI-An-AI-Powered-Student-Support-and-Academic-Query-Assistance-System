@@ -139,7 +139,7 @@ export function AdminAnalytics() {
         <div className="flex-1 h-full overflow-y-auto bg-background p-4 md:p-6">
             <div className="w-full space-y-6">
                 {/* Header */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
                             <BarChart3 className="w-5 h-5 text-primary" />
@@ -151,7 +151,7 @@ export function AdminAnalytics() {
                     </div>
                     <button
                         onClick={loadAnalytics}
-                        className="px-4 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-sm font-medium transition-colors"
+                        className="w-full sm:w-auto px-4 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-sm font-medium transition-colors"
                     >
                         Refresh
                     </button>

@@ -205,6 +205,55 @@ class ApiClient {
   }
 
   /**
+   * Rename a document
+   */
+  async renameDocument(docId: string, newTitle: string): Promise<{ success: boolean; message: string; can_undo: boolean; history_id: string | null }> {
+    const formData = new FormData();
+    formData.append('new_title', newTitle);
+
+    const response = await fetch(`${this.baseUrl}/api/documents/${docId}/rename`, {
+      method: 'PATCH',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Failed to rename document' }));
+      throw new Error(error.detail || 'Failed to rename document');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Undo the last rename operation
+   */
+  async undoRename(docId: string): Promise<{ success: boolean; message: string; reverted_to: string }> {
+    const response = await fetch(`${this.baseUrl}/api/documents/${docId}/undo-rename`, {
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Failed to undo rename' }));
+      throw new Error(error.detail || 'Failed to undo rename');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get rename history for a document
+   */
+  async getRenameHistory(docId: string, limit: number = 10): Promise<{ success: boolean; history: any[]; can_undo: boolean }> {
+    const response = await fetch(`${this.baseUrl}/api/documents/${docId}/rename-history?limit=${limit}`);
+
+    if (!response.ok) {
+      throw new Error('Failed to get rename history');
+    }
+
+    return response.json();
+  }
+
+  /**
    * Delete a document
    */
   async deleteDocument(docId: string): Promise<{ success: boolean; message: string }> {

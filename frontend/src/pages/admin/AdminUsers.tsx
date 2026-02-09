@@ -223,7 +223,7 @@ export function AdminUsers() {
                 `User ${userToSuspend.suspend ? 'suspended' : 'activated'} successfully`,
                 'success'
             )
-            
+
             setSuspendModalOpen(false)
             setUserToSuspend(null)
         } catch (err) {
@@ -260,10 +260,10 @@ export function AdminUsers() {
     }
 
     return (
-        <div className="flex-1 h-full overflow-y-auto bg-background p-4 md:px-2 md:py-6">
+        <div className="flex-1 h-full overflow-y-auto bg-background p-4 md:p-6">
             <div className="w-full max-w-full space-y-6">
                 {/* Header */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
                             <Users className="w-5 h-5 text-primary" />
@@ -275,7 +275,7 @@ export function AdminUsers() {
                     </div>
                     <button
                         onClick={loadUsers}
-                        className="px-4 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-sm font-medium transition-colors"
+                        className="w-full sm:w-auto px-4 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-sm font-medium transition-colors"
                     >
                         Refresh
                     </button>

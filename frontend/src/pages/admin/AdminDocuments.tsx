@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Input } from '../../components/ui/Input'
 import { DeleteDocumentModal } from '../../components/ui/DeleteDocumentModal'
+import { RenameDocumentModal } from '../../components/ui/RenameDocumentModal'
+import { DocumentPreviewModal } from '../../components/modals/DocumentPreviewModal'
 import { api, type Document } from '../../lib/api'
 import {
     FileText,
@@ -14,7 +16,9 @@ import {
     Trash2,
     X,
     CheckCircle,
-    AlertCircle
+    AlertCircle,
+    Edit2,
+    Eye
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -23,6 +27,8 @@ export function AdminDocuments() {
     const [showUploadModal, setShowUploadModal] = useState(false)
     const [uploadSuccess, setUploadSuccess] = useState(false)
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+    const [isRenameModalOpen, setIsRenameModalOpen] = useState(false)
+    const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
     const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
     const [currentPage, setCurrentPage] = useState(1)
     const ITEMS_PER_PAGE = 10
@@ -144,6 +150,38 @@ export function AdminDocuments() {
         }
     }
 
+    const handleRename = (doc: Document) => {
+        setSelectedDocument(doc)
+        setIsRenameModalOpen(true)
+    }
+
+    const handleRenameConfirm = async (docId: string, newTitle: string) => {
+        try {
+            await api.renameDocument(docId, newTitle)
+            await loadDocuments()
+            setSelectedDocument(null)
+        } catch (err) {
+            // Error is thrown to the modal
+            throw err
+        }
+    }
+
+    const handleUndoRename = async (docId: string) => {
+        try {
+            await api.undoRename(docId)
+            await loadDocuments()
+            setSelectedDocument(null)
+        } catch (err) {
+            // Error is thrown to the modal
+            throw err
+        }
+    }
+
+    const handlePreview = (doc: Document) => {
+        setSelectedDocument(doc)
+        setIsPreviewModalOpen(true)
+    }
+
     const handleDelete = (doc: Document) => {
         setSelectedDocument(doc)
         setIsDeleteModalOpen(true)
@@ -167,7 +205,7 @@ export function AdminDocuments() {
         <div className="flex-1 h-full overflow-y-auto bg-background p-4 md:p-6">
             <div className="w-full space-y-6">
                 {/* Header */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
                             <FileText className="w-5 h-5 text-primary" />
@@ -182,7 +220,7 @@ export function AdminDocuments() {
                             <p className="text-sm text-text-muted mt-1">Manage uploaded academic documents</p>
                         </div>
                     </div>
-                    <Button variant="cta" onClick={() => setShowUploadModal(true)}>
+                    <Button variant="cta" onClick={() => setShowUploadModal(true)} className="w-full sm:w-auto">
                         <Upload className="w-4 h-4 mr-2" />
                         Upload Document
                     </Button>
@@ -266,6 +304,20 @@ export function AdminDocuments() {
                                                     <td className="px-2 py-4">
                                                         <div className="flex items-center justify-end gap-1">
                                                             <button
+                                                                onClick={() => handlePreview(doc)}
+                                                                className="p-2 rounded-lg hover:bg-primary/10 text-text-muted hover:text-primary transition-colors cursor-pointer"
+                                                                title="View Document"
+                                                            >
+                                                                <Eye className="w-4 h-4" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleRename(doc)}
+                                                                className="p-2 rounded-lg hover:bg-primary/10 text-text-muted hover:text-primary transition-colors cursor-pointer"
+                                                                title="Rename"
+                                                            >
+                                                                <Edit2 className="w-4 h-4" />
+                                                            </button>
+                                                            <button
                                                                 onClick={() => handleDelete(doc)}
                                                                 className="p-2 rounded-lg hover:bg-error/10 text-text-muted hover:text-error transition-colors cursor-pointer"
                                                                 title="Delete"
@@ -294,16 +346,32 @@ export function AdminDocuments() {
                                                         <FileText className="w-5 h-5 text-primary" />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-medium text-text line-clamp-2">{doc.title}</p>
+                                                        <p className="text-sm font-medium text-text break-words">{doc.title}</p>
                                                     </div>
                                                 </div>
-                                                <button
-                                                    onClick={() => handleDelete(doc)}
-                                                    className="p-2 rounded-lg hover:bg-error/10 text-text-muted hover:text-error transition-colors flex-shrink-0"
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+                                                <div className="flex items-center gap-1 flex-shrink-0">
+                                                    <button
+                                                        onClick={() => handlePreview(doc)}
+                                                        className="p-2 rounded-lg hover:bg-primary/10 text-text-muted hover:text-primary transition-colors"
+                                                        title="View Document"
+                                                    >
+                                                        <Eye className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleRename(doc)}
+                                                        className="p-2 rounded-lg hover:bg-primary/10 text-text-muted hover:text-primary transition-colors"
+                                                        title="Rename"
+                                                    >
+                                                        <Edit2 className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(doc)}
+                                                        className="p-2 rounded-lg hover:bg-error/10 text-text-muted hover:text-error transition-colors"
+                                                        title="Delete"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
                                             </div>
 
                                             {/* Document Details Grid */}
@@ -391,14 +459,34 @@ export function AdminDocuments() {
                     )}
                 </Card>
 
+                <RenameDocumentModal
+                    isOpen={isRenameModalOpen}
+                    onClose={() => {
+                        setIsRenameModalOpen(false)
+                        setSelectedDocument(null)
+                    }}
+                    doc={selectedDocument}
+                    onRename={handleRenameConfirm}
+                    onUndo={handleUndoRename}
+                />
+
                 <DeleteDocumentModal
                     isOpen={isDeleteModalOpen}
                     onClose={() => {
                         setIsDeleteModalOpen(false)
                         setSelectedDocument(null)
                     }}
-                    document={selectedDocument}
+                    doc={selectedDocument}
                     onDelete={handleDeleteConfirm}
+                />
+
+                <DocumentPreviewModal
+                    isOpen={isPreviewModalOpen}
+                    onClose={() => {
+                        setIsPreviewModalOpen(false)
+                        setSelectedDocument(null)
+                    }}
+                    doc={selectedDocument}
                 />
 
                 {/* Upload Modal */}

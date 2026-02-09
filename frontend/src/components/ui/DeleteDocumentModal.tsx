@@ -7,27 +7,27 @@ import { type Document } from '../../lib/api'
 interface DeleteDocumentModalProps {
     isOpen: boolean
     onClose: () => void
-    document: Document | null
+    doc: Document | null
     onDelete: (docId: string) => Promise<void>
 }
 
-export function DeleteDocumentModal({ 
-    isOpen, 
-    onClose, 
-    document,
-    onDelete 
+export function DeleteDocumentModal({
+    isOpen,
+    onClose,
+    doc,
+    onDelete
 }: DeleteDocumentModalProps) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
     const handleDelete = async () => {
-        if (!document) return
+        if (!doc) return
 
         setLoading(true)
         setError(null)
 
         try {
-            await onDelete(document.id)
+            await onDelete(doc.id)
             onClose()
         } catch (err) {
             console.error('Delete error:', err)
@@ -37,7 +37,7 @@ export function DeleteDocumentModal({
         }
     }
 
-    if (!document) return null
+    if (!doc) return null
 
     return (
         <Modal isOpen={isOpen} onClose={onClose}>
@@ -63,21 +63,21 @@ export function DeleteDocumentModal({
                                     Document
                                 </span>
                                 <span className="text-xs font-medium text-primary capitalize">
-                                    {document.category.replace(/_/g, ' ')}
+                                    {doc.category.replace(/_/g, ' ')}
                                 </span>
                             </div>
                             <div className="flex items-start gap-2">
                                 <FileText className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium text-text break-words">
-                                        {document.title}
+                                        {doc.title}
                                     </p>
-                                    {(document.program || document.department || document.semester) && (
+                                    {(doc.program || doc.department || doc.semester) && (
                                         <p className="text-xs text-text-muted mt-1">
                                             {[
-                                                document.program,
-                                                document.department,
-                                                document.semester && `Semester ${document.semester}`
+                                                doc.program,
+                                                doc.department,
+                                                doc.semester && `Semester ${doc.semester}`
                                             ].filter(Boolean).join(' • ')}
                                         </p>
                                     )}
