@@ -181,6 +181,11 @@ body {
 
 /* === UTILITIES === */
 
+/* Gradient Utility */
+@utility gradient-primary {
+  background: var(--gradient-primary);
+}
+
 /* Glassmorphism */
 .glass {
   background: var(--color-glass);

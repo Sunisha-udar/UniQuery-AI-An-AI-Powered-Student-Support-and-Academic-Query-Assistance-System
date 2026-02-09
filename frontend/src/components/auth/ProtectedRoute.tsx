@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth, type UserRole } from '../../contexts/AuthContext'
+import { SuspendedAccountModal } from '../modals/SuspendedAccountModal'
 
 interface ProtectedRouteProps {
     children: React.ReactNode
@@ -22,6 +23,15 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
     if (!user) {
         return <Navigate to="/login" replace />
+    }
+
+    // Show suspended modal for suspended users - blocks all access
+    if (user.suspended) {
+        return (
+            <div className="fixed inset-0 z-50 bg-background flex items-center justify-center">
+                <SuspendedAccountModal isOpen={true} />
+            </div>
+        )
     }
 
     if (!allowedRoles.includes(user.role)) {

@@ -4,16 +4,17 @@ import { useTheme } from '../../contexts/ThemeContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { LogoutModal } from '../ui/LogoutModal'
 import { DeleteChatModal } from '../ui/DeleteChatModal'
-import { loadChatSessions, deleteChatSession, type ChatSession } from '../../lib/chatHistory'
+import { loadChatSessions, deleteChatSession, updateSessionTitle, type ChatSession } from '../../lib/chatHistory'
+import { ChatActionMenu } from '../chat/ChatActionMenu'
 import {
     Settings,
     LogOut,
-    GraduationCap,
     MessageSquare,
     Moon,
     Sun,
     Plus,
-    Trash2,
+    Check,
+    X,
     HelpCircle,
     Search,
     User,
@@ -64,6 +65,8 @@ export function Sidebar({
     const [sessions, setSessions] = useState<ChatSession[]>([])
     const [loading, setLoading] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
+    const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
+    const [editTitle, setEditTitle] = useState('')
 
     // Load chat sessions if user is a student
     useEffect(() => {
@@ -107,11 +110,7 @@ export function Sidebar({
         }
     }
 
-    const handleDeleteClick = (session: ChatSession, e: React.MouseEvent) => {
-        e.stopPropagation()
-        setSessionToDelete(session)
-        setDeleteModalOpen(true)
-    }
+
 
     const handleDeleteConfirm = async () => {
         if (!sessionToDelete) return
@@ -121,6 +120,39 @@ export function Sidebar({
 
         if (sessionToDelete.id === currentSessionId) {
             navigate('/student')
+        }
+    }
+
+
+    const handleShare = (session: ChatSession) => {
+        const url = `${window.location.origin}/student?session=${session.id}`
+        navigator.clipboard.writeText(url)
+        // Could add a toast notification here
+    }
+
+    const handleRenameClick = (session: ChatSession) => {
+        setEditingSessionId(session.id)
+        setEditTitle(session.title)
+    }
+
+    const handleRenameSubmit = async (e?: React.FormEvent) => {
+        e?.preventDefault()
+        if (!editingSessionId || !editTitle.trim()) {
+            setEditingSessionId(null)
+            return
+        }
+
+        try {
+            await updateSessionTitle(editingSessionId, editTitle.trim())
+            setSessions(prev => prev.map(s =>
+                s.id === editingSessionId
+                    ? { ...s, title: editTitle.trim(), updatedAt: new Date().toISOString() }
+                    : s
+            ))
+        } catch (err) {
+            console.error('Failed to rename session:', err)
+        } finally {
+            setEditingSessionId(null)
         }
     }
 
@@ -161,8 +193,8 @@ export function Sidebar({
                 )}>
                     {isExpanded && (
                         <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-                                <GraduationCap className="w-5 h-5 text-white" />
+                            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                <img src="/logo.png" alt="UniQuery Logo" className="w-full h-full object-cover" />
                             </div>
                             <motion.span
                                 initial={{ opacity: 0, x: -10 }}
@@ -317,9 +349,13 @@ export function Sidebar({
                                         initial={{ opacity: 0, x: -10 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ duration: 0.2 }}
-                                        onClick={() => navigate(`/student?session=${session.id}`)}
+                                        onClick={() => {
+                                            if (editingSessionId !== session.id) {
+                                                navigate(`/student?session=${session.id}`)
+                                            }
+                                        }}
                                         className={clsx(
-                                            'group relative flex items-start gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200',
+                                            'group relative flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200',
                                             currentSessionId === session.id
                                                 ? 'bg-sidebar-active text-text'
                                                 : 'hover:bg-sidebar-hover text-text-muted hover:text-text'
@@ -327,44 +363,61 @@ export function Sidebar({
                                         whileHover={{ scale: 1.01 }}
                                         whileTap={{ scale: 0.99 }}
                                     >
-                                        <MessageSquare className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm truncate font-medium">{session.title}</p>
-                                            <p className="text-xs opacity-60">{formatDate(session.updatedAt)}</p>
-                                        </div>
-                                        <button
-                                            onClick={(e) => handleDeleteClick(session, e)}
-                                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-surface rounded transition-all duration-200"
-                                            aria-label="Delete chat"
-                                        >
-                                            <Trash2 className="w-3.5 h-3.5 hover:text-error" />
-                                        </button>
+                                        <MessageSquare className="w-4 h-4 flex-shrink-0" />
+
+                                        {editingSessionId === session.id ? (
+                                            <div className="flex-1 min-w-0 flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                                <input
+                                                    type="text"
+                                                    value={editTitle}
+                                                    onChange={(e) => setEditTitle(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') handleRenameSubmit()
+                                                        if (e.key === 'Escape') setEditingSessionId(null)
+                                                        e.stopPropagation()
+                                                    }}
+                                                    className="flex-1 min-w-0 bg-background border border-border rounded px-1 py-0.5 text-sm focus:outline-hidden focus:border-primary"
+                                                    autoFocus
+                                                />
+                                                <button
+                                                    onClick={() => handleRenameSubmit()}
+                                                    className="p-0.5 text-primary hover:bg-primary/10 rounded"
+                                                >
+                                                    <Check className="w-3.5 h-3.5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => setEditingSessionId(null)}
+                                                    className="p-0.5 text-text-muted hover:bg-error/10 hover:text-error rounded"
+                                                >
+                                                    <X className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm truncate font-medium">{session.title}</p>
+                                                <p className="text-xs opacity-60">{formatDate(session.updatedAt)}</p>
+                                            </div>
+                                        )}
+
+                                        {editingSessionId !== session.id && (
+                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <ChatActionMenu
+                                                    chatId={session.id}
+                                                    chatTitle={session.title}
+                                                    onRename={() => handleRenameClick(session)}
+                                                    onDelete={() => {
+                                                        setSessionToDelete(session)
+                                                        setDeleteModalOpen(true)
+                                                    }}
+                                                    onShare={() => handleShare(session)}
+                                                />
+                                            </div>
+                                        )}
                                     </motion.div>
                                 ))}
                             </motion.div>
                         )
-                    ) : (
-                        // Collapsed view - show icons only
-                        <div className="space-y-1">
-                            {filteredSessions.slice(0, 5).map((session) => (
-                                <motion.button
-                                    key={session.id}
-                                    onClick={() => navigate(`/student?session=${session.id}`)}
-                                    className={clsx(
-                                        'w-full p-2.5 rounded-lg transition-all duration-200 flex items-center justify-center',
-                                        currentSessionId === session.id
-                                            ? 'bg-sidebar-active text-text'
-                                            : 'hover:bg-sidebar-hover text-text-muted hover:text-text'
-                                    )}
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    title={session.title}
-                                >
-                                    <MessageSquare className="w-5 h-5" />
-                                </motion.button>
-                            ))}
-                        </div>
-                    )}
+                    ) : null}
                 </div>
             )}
 

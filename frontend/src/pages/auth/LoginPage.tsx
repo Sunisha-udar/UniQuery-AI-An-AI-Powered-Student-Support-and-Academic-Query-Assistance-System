@@ -4,39 +4,50 @@ import { useAuth } from '../../contexts/AuthContext'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Card, CardContent } from '../../components/ui/Card'
-import { GraduationCap, AlertCircle } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 
 export function LoginPage() {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [error, setError] = useState('')
-    const [loading, setLoading] = useState(false)
-    const { login, user } = useAuth()
+    const [submitting, setSubmitting] = useState(false)
+    const { login, user, loading: authLoading } = useAuth()
     const navigate = useNavigate()
 
     // Redirect if already logged in
     useEffect(() => {
-        if (user) {
-            setLoading(false)
+        if (!authLoading && user) {
             navigate(user.role === 'admin' ? '/admin' : '/student', { replace: true })
         }
-    }, [user, navigate])
+    }, [user, authLoading, navigate])
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
         setError('')
-        setLoading(true)
+        setSubmitting(true)
 
         try {
             // Clear any stale data first
             sessionStorage.clear()
-            
+
             await login(email, password)
             // Navigation happens via useEffect when user state updates
         } catch (err) {
             setError('Invalid email or password. Please try again.')
-            setLoading(false)
+            setSubmitting(false)
         }
+    }
+
+    // Show loading spinner while auth state is being determined
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+                    <p className="text-text-muted text-sm">Loading...</p>
+                </div>
+            </div>
+        )
     }
 
     return (
@@ -44,8 +55,8 @@ export function LoginPage() {
             <div className="w-full max-w-md">
                 {/* Logo & Branding */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-primary mb-4">
-                        <GraduationCap className="w-8 h-8 text-white" />
+                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-6 overflow-hidden bg-white shadow-sm p-2">
+                        <img src="/logo.png" alt="UniQuery Logo" className="w-full h-full object-contain" />
                     </div>
                     <h1 className="text-2xl font-bold text-text">Welcome to UniQuery</h1>
                     <p className="text-text-muted mt-2">Your AI-powered academic assistant</p>
@@ -85,7 +96,7 @@ export function LoginPage() {
                             <Button
                                 type="submit"
                                 className="w-full"
-                                loading={loading}
+                                loading={submitting}
                             >
                                 Sign In
                             </Button>
