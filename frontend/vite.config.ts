@@ -49,6 +49,12 @@ export default defineConfig({
       '@': '/src',
     },
   },
+  server: {
+    allowedHosts: [
+      'so-periostracal-estell.ngrok-free.dev',
+      '.ngrok-free.dev' // Allow all ngrok subdomains for better dev experience
+    ]
+  },
   root: '.',
   envDir: '..',
 })

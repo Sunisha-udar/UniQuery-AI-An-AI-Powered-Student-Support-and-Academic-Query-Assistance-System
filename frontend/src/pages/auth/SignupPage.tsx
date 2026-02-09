@@ -111,11 +111,11 @@ export function SignupPage() {
     }
 
     return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="h-[100dvh] overflow-hidden overscroll-none bg-background flex items-center justify-center p-4 pb-4 md:pb-20">
             <div className="w-full max-w-md">
                 {/* Logo & Branding */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-6 overflow-hidden bg-white shadow-sm p-2">
+                    <div className="inline-flex items-center justify-center w-16 h-16 md:w-24 md:h-24 mb-2">
                         <img src="/logo.png" alt="UniQuery Logo" className="w-full h-full object-contain" />
                     </div>
                     <h1 className="text-2xl font-bold text-text">Create Account</h1>

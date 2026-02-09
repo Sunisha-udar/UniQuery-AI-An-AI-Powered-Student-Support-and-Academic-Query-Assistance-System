@@ -193,8 +193,8 @@ export function NavigationDrawer({
                         {/* Header with Logo */}
                         <div className="flex items-center justify-between p-3 border-b border-border">
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center overflow-hidden">
-                                    <img src="/logo.png" alt="UniQuery Logo" className="w-full h-full object-cover" />
+                                <div className="w-8 h-8 flex items-center justify-center">
+                                    <img src="/logo.png" alt="UniQuery Logo" className="w-full h-full object-contain" />
                                 </div>
                                 <span className="font-semibold text-text text-base">UniQuery AI</span>
                             </div>

@@ -15,6 +15,7 @@ import {
 import { clsx } from 'clsx'
 import { UserDetailsModal } from '../../components/admin/UserDetailsModal'
 import { UserActionMenu } from '../../components/admin/UserActionMenu'
+import { SuspendUserModal } from '../../components/admin/SuspendUserModal'
 import {
     getUserDetails,
     suspendUser as suspendUserAPI,
@@ -51,6 +52,8 @@ export function AdminUsers() {
     const [actionLoading, setActionLoading] = useState(false)
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
     const toastTimeoutRef = useRef<any>(null)
+    const [suspendModalOpen, setSuspendModalOpen] = useState(false)
+    const [userToSuspend, setUserToSuspend] = useState<{ id: string; email: string; suspend: boolean } | null>(null)
     const ITEMS_PER_PAGE = 10
 
     useEffect(() => {
@@ -189,29 +192,43 @@ export function AdminUsers() {
         }
     }
 
-    // Handler to suspend/activate user
+    // Handler to open suspend confirmation modal
     const handleSuspendUser = async (userId: string, suspend: boolean) => {
+        const user = users.find(u => u.id === userId)
+        if (user) {
+            setUserToSuspend({ id: userId, email: user.email, suspend })
+            setSuspendModalOpen(true)
+        }
+    }
+
+    // Handler to confirm suspension/activation
+    const confirmSuspendUser = async () => {
+        if (!userToSuspend) return
+
         try {
             setActionLoading(true)
-            await suspendUserAPI(userId, suspend)
+            await suspendUserAPI(userToSuspend.id, userToSuspend.suspend)
 
             // Update local state
             setUsers(prev => prev.map(u =>
-                u.id === userId ? { ...u, suspended: suspend } : u
+                u.id === userToSuspend.id ? { ...u, suspended: userToSuspend.suspend } : u
             ))
 
             // Update selected user if viewing details
-            if (selectedUser?.id === userId) {
-                setSelectedUser(prev => prev ? { ...prev, suspended: suspend } : null)
+            if (selectedUser?.id === userToSuspend.id) {
+                setSelectedUser(prev => prev ? { ...prev, suspended: userToSuspend.suspend } : null)
             }
 
             showToast(
-                `User ${suspend ? 'suspended' : 'activated'} successfully`,
+                `User ${userToSuspend.suspend ? 'suspended' : 'activated'} successfully`,
                 'success'
             )
+            
+            setSuspendModalOpen(false)
+            setUserToSuspend(null)
         } catch (err) {
             console.error('Error updating user suspension:', err)
-            showToast(`Failed to ${suspend ? 'suspend' : 'activate'} user`, 'error')
+            showToast(`Failed to ${userToSuspend.suspend ? 'suspend' : 'activate'} user`, 'error')
         } finally {
             setActionLoading(false)
         }
@@ -243,8 +260,8 @@ export function AdminUsers() {
     }
 
     return (
-        <div className="flex-1 h-full overflow-y-auto bg-background p-4 md:p-6">
-            <div className="w-full space-y-6">
+        <div className="flex-1 h-full overflow-y-auto bg-background p-4 md:px-2 md:py-6">
+            <div className="w-full max-w-full space-y-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -333,9 +350,9 @@ export function AdminUsers() {
                     </CardContent>
                 </Card>
 
-                {/* Users Table */}
+                {/* Users Table/Cards */}
                 <Card className="border border-border shadow-sm">
-                    <CardContent className="p-0">
+                    <CardContent className="!p-0">
                         {loading ? (
                             <div className="py-16 text-center">
                                 <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
@@ -356,48 +373,143 @@ export function AdminUsers() {
                                 </p>
                             </div>
                         ) : (
-                            <div className="overflow-x-auto pb-48">
-                                <table className="w-full">
-                                    <thead className="bg-muted/30 border-b border-border">
-                                        <tr>
-                                            <th className="text-left px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
-                                                User
-                                            </th>
-                                            <th className="text-left px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
-                                                Role
-                                            </th>
-                                            <th className="text-left px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
-                                                Queries
-                                            </th>
-                                            <th className="text-left px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
-                                                Last Active
-                                            </th>
-                                            <th className="text-left px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
-                                                Joined
-                                            </th>
-                                            <th className="text-left px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
-                                                Status
-                                            </th>
-                                            <th className="text-right px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
-                                                Actions
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-border">
-                                        {paginatedUsers.map((user) => (
-                                            <tr key={user.id} className="hover:bg-muted/20 transition-colors">
-                                                <td className="px-4 py-3">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                                                            <User className="w-4 h-4 text-primary" />
+                            <>
+                                {/* Desktop Table View - Hidden on Mobile */}
+                                <div className="hidden md:block overflow-x-auto">
+                                    <table className="w-full">
+                                        <thead className="bg-muted/30 border-b border-border">
+                                            <tr>
+                                                <th className="text-left px-2 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
+                                                    User
+                                                </th>
+                                                <th className="text-left px-2 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
+                                                    Role
+                                                </th>
+                                                <th className="text-left px-2 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
+                                                    Queries
+                                                </th>
+                                                <th className="text-left px-2 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
+                                                    Last Active
+                                                </th>
+                                                <th className="text-left px-2 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
+                                                    Joined
+                                                </th>
+                                                <th className="text-left px-2 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
+                                                    Status
+                                                </th>
+                                                <th className="text-right px-2 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
+                                                    Actions
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border">
+                                            {paginatedUsers.map((user) => (
+                                                <tr key={user.id}>
+                                                    <td className="px-2 py-3">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
+                                                                <User className="w-4 h-4 text-primary" />
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm font-medium text-text">{user.email}</p>
+                                                                <p className="text-xs text-text-muted">{user.id.substring(0, 8)}...</p>
+                                                            </div>
                                                         </div>
-                                                        <div>
-                                                            <p className="text-sm font-medium text-text">{user.email}</p>
-                                                            <p className="text-xs text-text-muted">{user.id.substring(0, 8)}...</p>
+                                                    </td>
+                                                    <td className="px-2 py-3">
+                                                        <span className={clsx(
+                                                            'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
+                                                            user.role === 'admin'
+                                                                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                                                : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                                                        )}>
+                                                            {user.role === 'admin' ? <Shield className="w-3 h-3" /> : <User className="w-3 h-3" />}
+                                                            {user.role === 'admin' ? 'Admin' : 'Student'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-2 py-3">
+                                                        <div className="flex items-center gap-1.5 text-sm text-text">
+                                                            <MessageSquare className="w-3.5 h-3.5 text-text-muted" />
+                                                            {user.queryCount}
                                                         </div>
+                                                    </td>
+                                                    <td className="px-2 py-3">
+                                                        <span className="text-sm text-text-muted">
+                                                            {formatRelativeTime(user.last_sign_in_at)}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-2 py-3">
+                                                        <span className="text-sm text-text-muted">
+                                                            {formatDate(user.created_at)}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-2 py-3">
+                                                        <span className={clsx(
+                                                            'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
+                                                            user.suspended
+                                                                ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+                                                                : 'bg-green-500/10 text-green-600 dark:text-green-400'
+                                                        )}>
+                                                            {user.suspended ? (
+                                                                <>
+                                                                    <Ban className="w-3 h-3" />
+                                                                    Suspended
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <CheckCircle className="w-3 h-3" />
+                                                                    Active
+                                                                </>
+                                                            )}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-2 py-3 text-right">
+                                                        <UserActionMenu
+                                                            user={user as any}
+                                                            onViewDetails={() => handleViewDetails(user)}
+                                                            onSuspend={(suspend) => handleSuspendUser(user.id, suspend)}
+                                                            onChangeRole={(role) => handleChangeRole(user.id, role)}
+                                                        />
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Mobile Card View - Shown on Mobile Only */}
+                                <div className="md:hidden space-y-3 p-4">
+                                    {paginatedUsers.map((user) => (
+                                        <div
+                                            key={user.id}
+                                            className="bg-surface border border-border rounded-lg p-4"
+                                        >
+                                            {/* User Header */}
+                                            <div className="flex items-start justify-between mb-3">
+                                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                                        <User className="w-5 h-5 text-primary" />
                                                     </div>
-                                                </td>
-                                                <td className="px-4 py-3">
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-medium text-text truncate">{user.email}</p>
+                                                        <p className="text-xs text-text-muted">{user.id.substring(0, 12)}...</p>
+                                                    </div>
+                                                </div>
+                                                <div onClick={(e) => e.stopPropagation()}>
+                                                    <UserActionMenu
+                                                        user={user as any}
+                                                        onViewDetails={() => handleViewDetails(user)}
+                                                        onSuspend={(suspend) => handleSuspendUser(user.id, suspend)}
+                                                        onChangeRole={(role) => handleChangeRole(user.id, role)}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* User Details Grid */}
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {/* Role */}
+                                                <div>
+                                                    <p className="text-xs text-text-muted mb-1">Role</p>
                                                     <span className={clsx(
                                                         'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
                                                         user.role === 'admin'
@@ -407,24 +519,11 @@ export function AdminUsers() {
                                                         {user.role === 'admin' ? <Shield className="w-3 h-3" /> : <User className="w-3 h-3" />}
                                                         {user.role === 'admin' ? 'Admin' : 'Student'}
                                                     </span>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <div className="flex items-center gap-1.5 text-sm text-text">
-                                                        <MessageSquare className="w-3.5 h-3.5 text-text-muted" />
-                                                        {user.queryCount}
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <span className="text-sm text-text-muted">
-                                                        {formatRelativeTime(user.last_sign_in_at)}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <span className="text-sm text-text-muted">
-                                                        {formatDate(user.created_at)}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3">
+                                                </div>
+
+                                                {/* Status */}
+                                                <div>
+                                                    <p className="text-xs text-text-muted mb-1">Status</p>
                                                     <span className={clsx(
                                                         'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
                                                         user.suspended
@@ -443,20 +542,37 @@ export function AdminUsers() {
                                                             </>
                                                         )}
                                                     </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
-                                                    <UserActionMenu
-                                                        user={user as any}
-                                                        onViewDetails={() => handleViewDetails(user)}
-                                                        onSuspend={(suspend) => handleSuspendUser(user.id, suspend)}
-                                                        onChangeRole={(role) => handleChangeRole(user.id, role)}
-                                                    />
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div >
+                                                </div>
+
+                                                {/* Queries */}
+                                                <div>
+                                                    <p className="text-xs text-text-muted mb-1">Queries</p>
+                                                    <div className="flex items-center gap-1.5 text-sm text-text">
+                                                        <MessageSquare className="w-3.5 h-3.5 text-text-muted" />
+                                                        <span className="font-medium">{user.queryCount}</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Last Active */}
+                                                <div>
+                                                    <p className="text-xs text-text-muted mb-1">Last Active</p>
+                                                    <p className="text-sm text-text font-medium">
+                                                        {formatRelativeTime(user.last_sign_in_at)}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {/* Joined Date */}
+                                            <div className="mt-3 pt-3 border-t border-border">
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className="text-text-muted">Joined</span>
+                                                    <span className="text-text font-medium">{formatDate(user.created_at)}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
                         )
                         }
                     </CardContent >
@@ -514,13 +630,26 @@ export function AdminUsers() {
             </div >
 
             {/* User Details Modal */}
-            < UserDetailsModal
+            <UserDetailsModal
                 isOpen={isDetailsModalOpen}
                 onClose={() => setIsDetailsModalOpen(false)}
                 user={selectedUser}
                 onSuspend={(suspend) => selectedUser && handleSuspendUser(selectedUser.id, suspend)}
                 onChangeRole={(role) => selectedUser && handleChangeRole(selectedUser.id, role)}
                 isLoading={actionLoading}
+            />
+
+            {/* Suspend User Confirmation Modal */}
+            <SuspendUserModal
+                isOpen={suspendModalOpen}
+                onClose={() => {
+                    setSuspendModalOpen(false)
+                    setUserToSuspend(null)
+                }}
+                onConfirm={confirmSuspendUser}
+                userEmail={userToSuspend?.email || ''}
+                isSuspending={userToSuspend?.suspend || false}
+                loading={actionLoading}
             />
 
             {/* Toast Notification */}

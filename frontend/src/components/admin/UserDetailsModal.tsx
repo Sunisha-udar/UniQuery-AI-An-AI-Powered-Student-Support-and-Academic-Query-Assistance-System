@@ -232,15 +232,15 @@ export function UserDetailsModal({
             </ModalBody>
 
             <ModalFooter>
-                <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-3">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                         {onSuspend && (
                             <Button
                                 variant={user.suspended ? "primary" : "secondary"}
                                 size="sm"
                                 onClick={() => onSuspend(!user.suspended)}
                                 disabled={isLoading}
-                                className={!user.suspended ? "bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400" : ""}
+                                className={!user.suspended ? "bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 w-full sm:w-auto" : "w-full sm:w-auto"}
                             >
                                 {user.suspended ? (
                                     <>
@@ -261,12 +261,19 @@ export function UserDetailsModal({
                                 size="sm"
                                 onClick={() => onChangeRole(user.role === 'admin' ? 'student' : 'admin')}
                                 disabled={isLoading}
+                                className="w-full sm:w-auto"
                             >
                                 Change to {user.role === 'admin' ? 'Student' : 'Admin'}
                             </Button>
                         )}
                     </div>
-                    <Button variant="secondary" size="sm" onClick={onClose} disabled={isLoading}>
+                    <Button 
+                        variant="secondary" 
+                        size="sm" 
+                        onClick={onClose} 
+                        disabled={isLoading}
+                        className="w-full sm:w-auto"
+                    >
                         Close
                     </Button>
                 </div>
