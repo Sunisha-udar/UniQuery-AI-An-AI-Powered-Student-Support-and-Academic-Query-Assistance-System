@@ -15,6 +15,7 @@ from app.services.supabase_storage_service import get_supabase_storage_service
 from app.services.document_processor import get_document_processor
 from app.services.supabase_db_service import get_supabase_db_service
 from app.services.name_extractor import get_name_extractor
+from app.services.rename_history_service import get_rename_history_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -152,6 +153,158 @@ async def download_document(doc_id: str):
         }
     else:
         raise HTTPException(status_code=404, detail="PDF not found in storage")
+
+
+@router.patch("/{doc_id}/rename")
+async def rename_document(doc_id: str, new_title: str = Form(...)):
+    """
+    Rename a document by updating its title in both Supabase and Qdrant.
+    Also records the rename in history for undo capability.
+    """
+    try:
+        db_service = get_supabase_db_service()
+        qdrant_service = get_qdrant_service()
+        history_service = get_rename_history_service()
+        
+        # Check if document exists in Supabase
+        doc = db_service.get_document_metadata(doc_id)
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Validate new title
+        if not new_title or not new_title.strip():
+            raise HTTPException(status_code=400, detail="New title cannot be empty")
+        
+        new_title = new_title.strip()
+        old_title = doc.get('title', 'Untitled')
+        
+        # Check if title is actually changing
+        if new_title == old_title:
+            raise HTTPException(status_code=400, detail="New title must be different from the current title")
+        
+        # Update title in Supabase database
+        db_updated = db_service.update_document_metadata(doc_id, {'title': new_title})
+        if not db_updated:
+            raise HTTPException(status_code=500, detail="Failed to update document metadata in database")
+        
+        logger.info(f"Updated title in Supabase from '{old_title}' to '{new_title}' for doc_id: {doc_id}")
+        
+        # Update title in all Qdrant chunks
+        chunks_updated = qdrant_service.update_document_title(doc_id, new_title)
+        logger.info(f"Updated title in {chunks_updated} Qdrant chunks for doc_id: {doc_id}")
+        
+        # Record in history (don't fail if history recording fails)
+        history_id = history_service.record_rename(doc_id, old_title, new_title)
+        
+        return {
+            "success": True,
+            "message": f"Document renamed from '{old_title}' to '{new_title}' successfully",
+            "doc_id": doc_id,
+            "old_title": old_title,
+            "new_title": new_title,
+            "chunks_updated": chunks_updated,
+            "history_id": history_id,
+            "can_undo": history_id is not None
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error renaming document: {e}")
+        raise HTTPException(status_code=500, detail=f"Error renaming document: {str(e)}")
+
+
+@router.post("/{doc_id}/undo-rename")
+async def undo_rename(doc_id: str):
+    """
+    Undo the last rename operation for a document.
+    Reverts to the previous title and records this as a new rename.
+    """
+    try:
+        db_service = get_supabase_db_service()
+        qdrant_service = get_qdrant_service()
+        history_service = get_rename_history_service()
+        
+        # Check if document exists
+        doc = db_service.get_document_metadata(doc_id)
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Get the latest rename operation that hasn't been undone
+        latest_rename = history_service.get_latest_rename(doc_id)
+        if not latest_rename:
+            raise HTTPException(status_code=404, detail="No rename history found to undo")
+        
+        current_title = doc.get('title', 'Untitled')
+        previous_title = latest_rename.get('old_title')
+        
+        # Verify current title matches the new_title in history
+        if current_title != latest_rename.get('new_title'):
+            logger.warning(f"Current title '{current_title}' doesn't match history '{latest_rename.get('new_title')}'")
+        
+        # Update title in Supabase database
+        db_updated = db_service.update_document_metadata(doc_id, {'title': previous_title})
+        if not db_updated:
+            raise HTTPException(status_code=500, detail="Failed to update document metadata in database")
+        
+        logger.info(f"Undoing rename: '{current_title}' → '{previous_title}' for doc_id: {doc_id}")
+        
+        # Update title in all Qdrant chunks
+        chunks_updated = qdrant_service.update_document_title(doc_id, previous_title)
+        logger.info(f"Updated title in {chunks_updated} Qdrant chunks for doc_id: {doc_id}")
+        
+        # Mark the history entry as undone
+        history_service.mark_as_undone(latest_rename.get('id'))
+        
+        # Record the undo as a new rename operation
+        history_service.record_rename(doc_id, current_title, previous_title, renamed_by="admin (undo)")
+        
+        return {
+            "success": True,
+            "message": f"Rename undone: reverted from '{current_title}' to '{previous_title}'",
+            "doc_id": doc_id,
+            "reverted_from": current_title,
+            "reverted_to": previous_title,
+            "chunks_updated": chunks_updated
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error undoing rename: {e}")
+        raise HTTPException(status_code=500, detail=f"Error undoing rename: {str(e)}")
+
+
+@router.get("/{doc_id}/rename-history")
+async def get_rename_history(doc_id: str, limit: int = 10):
+    """
+    Get the rename history for a specific document.
+    """
+    try:
+        db_service = get_supabase_db_service()
+        history_service = get_rename_history_service()
+        
+        # Check if document exists
+        doc = db_service.get_document_metadata(doc_id)
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Get history
+        history = history_service.get_document_history(doc_id, limit)
+        
+        return {
+            "success": True,
+            "doc_id": doc_id,
+            "current_title": doc.get('title', 'Untitled'),
+            "history": history,
+            "can_undo": len([h for h in history if not h.get('undone', False)]) > 0
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting rename history: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting rename history: {str(e)}")
 
 
 @router.delete("/{doc_id}")

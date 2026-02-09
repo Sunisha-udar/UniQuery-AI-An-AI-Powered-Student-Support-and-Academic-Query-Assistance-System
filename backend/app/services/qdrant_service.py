@@ -424,6 +424,61 @@ class QdrantService:
             logger.error(f"Error searching: {e}")
             return []
     
+    def update_document_title(self, doc_id: str, new_title: str) -> int:
+        """
+        Update the title in all chunks belonging to a specific document.
+        
+        Args:
+            doc_id: Document ID to update
+            new_title: New title to set
+            
+        Returns:
+            Number of points updated
+        """
+        try:
+            # First, scroll to get all point IDs for this doc_id
+            points = []
+            offset = None
+            
+            while True:
+                result = self.client.scroll(
+                    collection_name=self.collection_name,
+                    scroll_filter=None,  # No filter - scan all
+                    limit=100,
+                    offset=offset,
+                    with_payload=True,
+                    with_vectors=False
+                )
+                
+                batch_points, next_offset = result
+                
+                # Filter points by doc_id in memory
+                for point in batch_points:
+                    if point.payload.get('doc_id') == doc_id:
+                        points.append(point.id)
+                
+                if next_offset is None:
+                    break
+                offset = next_offset
+            
+            if not points:
+                logger.warning(f"No chunks found for document: {doc_id}")
+                return 0
+            
+            # Update title in all matching points
+            self.client.set_payload(
+                collection_name=self.collection_name,
+                payload={"title": new_title},
+                points=points
+            )
+            
+            logger.info(f"Updated title to '{new_title}' for {len(points)} chunks in document: {doc_id}")
+            return len(points)
+            
+        except Exception as e:
+            logger.error(f"Error updating document title: {e}")
+            raise
+    
     def delete_by_doc_id(self, doc_id: str) -> int:
         """
         Delete all chunks belonging to a specific document.
