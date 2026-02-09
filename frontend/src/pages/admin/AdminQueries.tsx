@@ -219,9 +219,9 @@ export function AdminQueries() {
                     </CardContent>
                 </Card>
 
-                {/* Queries Table */}
+                {/* Queries Table/Cards */}
                 <Card className="border border-border shadow-sm">
-                    <CardContent className="p-0">
+                    <CardContent className="!p-0">
                         {loading ? (
                             <div className="py-16 text-center">
                                 <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
@@ -242,87 +242,154 @@ export function AdminQueries() {
                                 </p>
                             </div>
                         ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead className="bg-muted/30 border-b border-border">
-                                        <tr>
-                                            <th className="text-left px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
-                                                User
-                                            </th>
-                                            <th className="text-left px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
-                                                Question
-                                            </th>
-                                            <th className="text-left px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
-                                                Confidence
-                                            </th>
-                                            <th className="text-left px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
-                                                Time
-                                            </th>
-                                            <th className="text-left px-4 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
-                                                Actions
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-border">
-                                        {paginatedQueries.map((query, idx) => (
-                                            <tr key={`${query.id}-${idx}`} className="hover:bg-muted/20 transition-colors">
-                                                <td className="px-4 py-3">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                                                            <User className="w-4 h-4 text-primary" />
-                                                        </div>
-                                                        <span className="text-sm text-text font-medium truncate max-w-[150px]">
-                                                            {query.userId.substring(0, 8)}...
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <p className="text-sm text-text line-clamp-2 max-w-md">
-                                                        {query.question}
-                                                    </p>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    {getConfidenceBadge(query.confidence)}
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <div className="flex items-center gap-1.5 text-sm text-text-muted">
-                                                        <Clock className="w-3.5 h-3.5" />
-                                                        {formatTimestamp(query.timestamp)}
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <div className="flex items-center gap-2">
-                                                        <button
-                                                            onClick={() => {
-                                                                // Store the question context for the documents page
-                                                                sessionStorage.setItem('fixItQuestion', query.question)
-                                                                navigate('/admin/documents?action=upload')
-                                                            }}
-                                                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition-colors"
-                                                            title="Upload Document"
-                                                        >
-                                                            <Upload className="w-3.5 h-3.5" />
-                                                            Upload
-                                                        </button>
-
-                                                        <button
-                                                            onClick={() => {
-                                                                setSelectedQuestion(query.question)
-                                                                setIsManualAnswerModalOpen(true)
-                                                            }}
-                                                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-xs font-medium transition-colors"
-                                                            title="Provide Manual Answer"
-                                                        >
-                                                            <MessageSquare className="w-3.5 h-3.5" />
-                                                            Answer
-                                                        </button>
-                                                    </div>
-                                                </td>
+                            <>
+                                {/* Desktop Table View - Hidden on Mobile */}
+                                <div className="hidden md:block overflow-x-auto">
+                                    <table className="w-full">
+                                        <thead className="bg-muted/30 border-b border-border">
+                                            <tr>
+                                                <th className="text-left px-2 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
+                                                    User
+                                                </th>
+                                                <th className="text-left px-2 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
+                                                    Question
+                                                </th>
+                                                <th className="text-left px-2 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
+                                                    Confidence
+                                                </th>
+                                                <th className="text-left px-2 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
+                                                    Time
+                                                </th>
+                                                <th className="text-left px-2 py-3 text-xs font-semibold text-text-muted uppercase tracking-wider">
+                                                    Actions
+                                                </th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody className="divide-y divide-border">
+                                            {paginatedQueries.map((query, idx) => (
+                                                <tr key={`${query.id}-${idx}`}>
+                                                    <td className="px-2 py-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                                                <User className="w-4 h-4 text-primary" />
+                                                            </div>
+                                                            <span className="text-sm text-text font-medium truncate max-w-[150px]">
+                                                                {query.userId.substring(0, 8)}...
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-2 py-3">
+                                                        <p className="text-sm text-text line-clamp-2 max-w-md">
+                                                            {query.question}
+                                                        </p>
+                                                    </td>
+                                                    <td className="px-2 py-3">
+                                                        {getConfidenceBadge(query.confidence)}
+                                                    </td>
+                                                    <td className="px-2 py-3">
+                                                        <div className="flex items-center gap-1.5 text-sm text-text-muted">
+                                                            <Clock className="w-3.5 h-3.5" />
+                                                            {formatTimestamp(query.timestamp)}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-2 py-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                onClick={() => {
+                                                                    sessionStorage.setItem('fixItQuestion', query.question)
+                                                                    navigate('/admin/documents?action=upload')
+                                                                }}
+                                                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition-colors"
+                                                                title="Upload Document"
+                                                            >
+                                                                <Upload className="w-3.5 h-3.5" />
+                                                                Upload
+                                                            </button>
+
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSelectedQuestion(query.question)
+                                                                    setIsManualAnswerModalOpen(true)
+                                                                }}
+                                                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-xs font-medium transition-colors"
+                                                                title="Provide Manual Answer"
+                                                            >
+                                                                <MessageSquare className="w-3.5 h-3.5" />
+                                                                Answer
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Mobile Card View - Shown on Mobile Only */}
+                                <div className="md:hidden space-y-3 p-4">
+                                    {paginatedQueries.map((query, idx) => (
+                                        <div
+                                            key={`${query.id}-${idx}`}
+                                            className="bg-surface border border-border rounded-lg p-4"
+                                        >
+                                            {/* User and Time Header */}
+                                            <div className="flex items-center justify-between mb-3">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                                        <User className="w-4 h-4 text-primary" />
+                                                    </div>
+                                                    <span className="text-sm text-text font-medium">
+                                                        {query.userId.substring(0, 12)}...
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 text-xs text-text-muted">
+                                                    <Clock className="w-3.5 h-3.5" />
+                                                    {formatTimestamp(query.timestamp)}
+                                                </div>
+                                            </div>
+
+                                            {/* Question */}
+                                            <div className="mb-3">
+                                                <p className="text-xs text-text-muted mb-1">Question</p>
+                                                <p className="text-sm text-text leading-relaxed">
+                                                    {query.question}
+                                                </p>
+                                            </div>
+
+                                            {/* Confidence Badge */}
+                                            <div className="mb-3">
+                                                <p className="text-xs text-text-muted mb-1">Confidence</p>
+                                                {getConfidenceBadge(query.confidence)}
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div className="flex items-center gap-2 pt-3 border-t border-border">
+                                                <button
+                                                    onClick={() => {
+                                                        sessionStorage.setItem('fixItQuestion', query.question)
+                                                        navigate('/admin/documents?action=upload')
+                                                    }}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition-colors"
+                                                >
+                                                    <Upload className="w-3.5 h-3.5" />
+                                                    Upload Doc
+                                                </button>
+
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedQuestion(query.question)
+                                                        setIsManualAnswerModalOpen(true)
+                                                    }}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-xs font-medium transition-colors"
+                                                >
+                                                    <MessageSquare className="w-3.5 h-3.5" />
+                                                    Answer
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
                         )}
                     </CardContent>
                     {filteredQueries.length > ITEMS_PER_PAGE && (

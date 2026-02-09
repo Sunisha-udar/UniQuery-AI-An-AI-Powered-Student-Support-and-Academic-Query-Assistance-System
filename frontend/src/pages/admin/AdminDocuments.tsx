@@ -208,9 +208,9 @@ export function AdminDocuments() {
                     </CardContent>
                 </Card>
 
-                {/* Documents Table */}
+                {/* Documents Table/Cards */}
                 <Card>
-                    <CardContent className="p-0">
+                    <CardContent className="!p-0">
                         {error && (
                             <div className="p-4 bg-error/10 border-b border-error/20 flex items-center gap-2">
                                 <AlertCircle className="w-4 h-4 text-error" />
@@ -230,51 +230,122 @@ export function AdminDocuments() {
                                 <p className="text-xs text-text-muted mt-1">Upload your first document to get started</p>
                             </div>
                         ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="border-b border-border">
-                                            <th className="text-left text-sm font-medium text-text-muted px-5 py-4">Document</th>
-                                            <th className="text-left text-sm font-medium text-text-muted px-5 py-4">Version</th>
-                                            <th className="text-left text-sm font-medium text-text-muted px-5 py-4">Chunks</th>
-                                            <th className="text-left text-sm font-medium text-text-muted px-5 py-4">Uploaded</th>
-                                            <th className="text-right text-sm font-medium text-text-muted px-5 py-4">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {paginatedDocs.map((doc) => (
-                                            <tr key={doc.id} className="border-b border-border last:border-0 hover:bg-background transition-colors">
-                                                <td className="px-5 py-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                                                            <FileText className="w-5 h-5 text-primary" />
-                                                        </div>
-                                                        <span className="font-medium text-text">{doc.title}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-5 py-4 text-sm text-text-muted">{doc.program}</td>
-                                                <td className="px-5 py-4 text-sm text-text-muted">{doc.department}</td>
-                                                <td className="px-5 py-4 text-sm text-text-muted">v{doc.version}</td>
-                                                <td className="px-5 py-4 text-sm text-text-muted">{doc.chunk_count}</td>
-                                                <td className="px-5 py-4 text-sm text-text-muted">
-                                                    {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : 'N/A'}
-                                                </td>
-                                                <td className="px-5 py-4">
-                                                    <div className="flex items-center justify-end gap-1">
-                                                        <button
-                                                            onClick={() => handleDelete(doc)}
-                                                            className="p-2 rounded-lg hover:bg-error/10 text-text-muted hover:text-error transition-colors cursor-pointer"
-                                                            title="Delete"
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-                                                </td>
+                            <>
+                                {/* Desktop Table View - Hidden on Mobile */}
+                                <div className="hidden md:block overflow-x-auto">
+                                    <table className="w-full">
+                                        <thead>
+                                            <tr className="border-b border-border">
+                                                <th className="text-left text-sm font-medium text-text-muted px-2 py-4">Document</th>
+                                                <th className="text-left text-sm font-medium text-text-muted px-2 py-4">Program</th>
+                                                <th className="text-left text-sm font-medium text-text-muted px-2 py-4">Department</th>
+                                                <th className="text-left text-sm font-medium text-text-muted px-2 py-4">Version</th>
+                                                <th className="text-left text-sm font-medium text-text-muted px-2 py-4">Chunks</th>
+                                                <th className="text-left text-sm font-medium text-text-muted px-2 py-4">Uploaded</th>
+                                                <th className="text-right text-sm font-medium text-text-muted px-2 py-4">Actions</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody>
+                                            {paginatedDocs.map((doc) => (
+                                                <tr key={doc.id} className="border-b border-border last:border-0">
+                                                    <td className="px-2 py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                                                                <FileText className="w-5 h-5 text-primary" />
+                                                            </div>
+                                                            <span className="font-medium text-text">{doc.title}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-2 py-4 text-sm text-text-muted">{doc.program}</td>
+                                                    <td className="px-2 py-4 text-sm text-text-muted">{doc.department}</td>
+                                                    <td className="px-2 py-4 text-sm text-text-muted">v{doc.version}</td>
+                                                    <td className="px-2 py-4 text-sm text-text-muted">{doc.chunk_count}</td>
+                                                    <td className="px-2 py-4 text-sm text-text-muted">
+                                                        {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : 'N/A'}
+                                                    </td>
+                                                    <td className="px-2 py-4">
+                                                        <div className="flex items-center justify-end gap-1">
+                                                            <button
+                                                                onClick={() => handleDelete(doc)}
+                                                                className="p-2 rounded-lg hover:bg-error/10 text-text-muted hover:text-error transition-colors cursor-pointer"
+                                                                title="Delete"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Mobile Card View - Shown on Mobile Only */}
+                                <div className="md:hidden space-y-3 p-4">
+                                    {paginatedDocs.map((doc) => (
+                                        <div
+                                            key={doc.id}
+                                            className="bg-surface border border-border rounded-lg p-4"
+                                        >
+                                            {/* Document Header */}
+                                            <div className="flex items-start justify-between mb-3">
+                                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                                        <FileText className="w-5 h-5 text-primary" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-medium text-text line-clamp-2">{doc.title}</p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleDelete(doc)}
+                                                    className="p-2 rounded-lg hover:bg-error/10 text-text-muted hover:text-error transition-colors flex-shrink-0"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+
+                                            {/* Document Details Grid */}
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {/* Program */}
+                                                <div>
+                                                    <p className="text-xs text-text-muted mb-1">Program</p>
+                                                    <p className="text-sm text-text font-medium">{doc.program}</p>
+                                                </div>
+
+                                                {/* Department */}
+                                                <div>
+                                                    <p className="text-xs text-text-muted mb-1">Department</p>
+                                                    <p className="text-sm text-text font-medium">{doc.department}</p>
+                                                </div>
+
+                                                {/* Version */}
+                                                <div>
+                                                    <p className="text-xs text-text-muted mb-1">Version</p>
+                                                    <p className="text-sm text-text font-medium">v{doc.version}</p>
+                                                </div>
+
+                                                {/* Chunks */}
+                                                <div>
+                                                    <p className="text-xs text-text-muted mb-1">Chunks</p>
+                                                    <p className="text-sm text-text font-medium">{doc.chunk_count}</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Upload Date */}
+                                            <div className="mt-3 pt-3 border-t border-border">
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className="text-text-muted">Uploaded</span>
+                                                    <span className="text-text font-medium">
+                                                        {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : 'N/A'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
                         )}
                     </CardContent>
                     {filteredDocs.length > ITEMS_PER_PAGE && (
