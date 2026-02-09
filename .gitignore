@@ -49,3 +49,7 @@ serviceAccountKey.json
 .qodo
 .vscode
 .kombai
+
+# PDF documents (should be in cloud storage)
+krmu/
+*.pdf
