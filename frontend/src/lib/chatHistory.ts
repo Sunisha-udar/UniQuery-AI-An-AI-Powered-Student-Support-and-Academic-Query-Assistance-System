@@ -19,6 +19,7 @@ export interface ChatMessage {
     }[]
     confidence?: number
     timestamp: Date | string
+    feedback?: 'up' | 'down'
 }
 
 export interface ChatSession {
@@ -294,7 +295,9 @@ export async function saveUserQuery(
     question: string,
     answer: string,
     confidence: number,
-    citations?: any[]
+    citations?: any[],
+    messageId?: string,
+    feedback?: 'up' | 'down'
 ): Promise<void> {
     console.log('[ChatHistory] Saving user query for analytics')
     try {
@@ -306,7 +309,9 @@ export async function saveUserQuery(
                 question,
                 answer,
                 confidence,
-                citations
+                citations,
+                message_id: messageId,
+                feedback
             })
 
         if (error) {
@@ -317,6 +322,61 @@ export async function saveUserQuery(
         }
     } catch (error) {
         console.error('[ChatHistory] Error in saveUserQuery:', error)
+    }
+}
+
+/**
+ * Rate a message (thumbs up/down)
+ */
+export async function rateMessage(
+    sessionId: string,
+    messageId: string,
+    feedback: 'up' | 'down'
+): Promise<void> {
+    console.log('[ChatHistory] Rating message:', messageId, feedback)
+    try {
+        // 1. Update the message in the chat session (for UI persistence)
+        const { data: session, error: fetchError } = await supabase
+            .from('chat_sessions')
+            .select('messages')
+            .eq('id', sessionId)
+            .single()
+
+        if (fetchError) throw fetchError
+
+        const updatedMessages = (session.messages as ChatMessage[]).map(msg => {
+            if (msg.id === messageId) {
+                return { ...msg, feedback }
+            }
+            return msg
+        })
+
+        const { error: updateError } = await supabase
+            .from('chat_sessions')
+            .update({
+                messages: updatedMessages,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', sessionId)
+
+        if (updateError) throw updateError
+
+        // 2. Update the analytics table (user_queries)
+        // We try to find the query record associated with this message
+        const { error: analyticsError } = await supabase
+            .from('user_queries')
+            .update({ feedback })
+            .eq('message_id', messageId)
+
+        if (analyticsError) {
+            console.error('[ChatHistory] Warning: Could not update analytics feedback:', analyticsError)
+            // We don't throw here strictly, as the UI update is more important for the user
+        }
+
+        console.log('[ChatHistory] Message rated successfully')
+    } catch (error) {
+        console.error('[ChatHistory] Error rating message:', error)
+        throw error
     }
 }
 
