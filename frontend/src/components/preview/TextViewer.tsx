@@ -18,13 +18,13 @@ export function TextViewer({ fileUrl, fileName = 'document.txt' }: TextViewerPro
       try {
         setIsLoading(true)
         setError(null)
-        
+
         const response = await fetch(fileUrl)
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch file content')
         }
-        
+
         const text = await response.text()
         setContent(text)
       } catch (err) {
@@ -90,7 +90,7 @@ export function TextViewer({ fileUrl, fileName = 'document.txt' }: TextViewerPro
             {content.split('\n').length} lines • {content.length} characters
           </span>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <Button
             variant="secondary"
@@ -110,15 +110,8 @@ export function TextViewer({ fileUrl, fileName = 'document.txt' }: TextViewerPro
               </>
             )}
           </Button>
-          
-          <a
-            href={fileUrl}
-            download={fileName}
-            className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm"
-          >
-            <Download className="w-4 h-4" />
-            Download
-          </a>
+
+
         </div>
       </div>
 

@@ -16,7 +16,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         try {
             const stored = localStorage.getItem(STORAGE_KEY)
             if (stored === 'light' || stored === 'dark') return stored
-        } catch {}
+        } catch { }
         return 'light'
     })
 
@@ -29,9 +29,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (!mounted) return
         document.documentElement.setAttribute('data-theme', theme)
+        document.documentElement.style.colorScheme = theme
         try {
             localStorage.setItem(STORAGE_KEY, theme)
-        } catch {}
+        } catch { }
     }, [theme, mounted])
 
     const toggleTheme = () => {
