@@ -22,6 +22,10 @@ export default defineConfig({
         clientsClaim: true,
         runtimeCaching: [
           {
+            urlPattern: /\/api\/health|\/health/,
+            handler: 'NetworkOnly',
+          },
+          {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
@@ -110,6 +114,11 @@ export default defineConfig({
     ],
     proxy: {
       '/api': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/health': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
         secure: false,

@@ -33,10 +33,12 @@ export function AdminDashboard() {
     const [systemHealth, setSystemHealth] = useState<{
         backend: 'online' | 'offline' | 'checking'
         vectorDb: 'online' | 'offline' | 'checking'
+        database: 'online' | 'offline' | 'checking'
         latency: number | null
     }>({
         backend: 'checking',
         vectorDb: 'checking',
+        database: 'checking',
         latency: null
     })
 
@@ -113,12 +115,14 @@ export function AdminDashboard() {
             setSystemHealth({
                 backend: 'online',
                 vectorDb: health.qdrant_connected ? 'online' : 'offline',
+                database: health.database_connected ? 'online' : 'offline',
                 latency
             })
         } catch {
             setSystemHealth({
                 backend: 'offline',
                 vectorDb: 'offline',
+                database: 'offline',
                 latency: null
             })
         }
@@ -392,16 +396,21 @@ export function AdminDashboard() {
                                             {getStatusText(systemHealth.vectorDb)}
                                         </span>
                                     </div>
-                                    {systemHealth.latency !== null && (
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm text-text-muted">API Latency</span>
-                                            <span className={`text-xs font-medium ${systemHealth.latency < 500 ? 'text-green-500' :
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm text-text-muted">Database</span>
+                                        <span className={`text-xs font-medium ${getStatusColor(systemHealth.database)}`}>
+                                            {getStatusText(systemHealth.database)}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm text-text-muted">API Latency</span>
+                                        <span className={`text-xs font-medium ${systemHealth.latency === null ? 'text-red-500' :
+                                            systemHealth.latency < 500 ? 'text-green-500' :
                                                 systemHealth.latency < 1500 ? 'text-yellow-500' : 'text-red-500'
-                                                }`}>
-                                                {systemHealth.latency}ms
-                                            </span>
-                                        </div>
-                                    )}
+                                            }`}>
+                                            {systemHealth.latency !== null ? `${systemHealth.latency}ms` : '-'}
+                                        </span>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>

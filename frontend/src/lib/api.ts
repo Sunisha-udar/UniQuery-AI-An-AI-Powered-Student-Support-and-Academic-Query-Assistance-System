@@ -386,8 +386,8 @@ class ApiClient {
   /**
    * Check backend health
    */
-  async checkHealth(): Promise<{ status: string; qdrant_connected: boolean }> {
-    const response = await fetch(`${this.baseUrl}/health`);
+  async checkHealth(): Promise<{ status: string; qdrant_connected: boolean; database_connected: boolean; latency?: number }> {
+    const response = await fetch(`${this.baseUrl}/health?t=${Date.now()}`);
 
     if (!response.ok) {
       throw new Error('Backend is not responding');
