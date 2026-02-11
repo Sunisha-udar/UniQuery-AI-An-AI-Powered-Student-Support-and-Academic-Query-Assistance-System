@@ -4,6 +4,7 @@ import { Button } from '../ui/Button'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '../ui/Modal'
 import { Input } from '../ui/Input'
 import { supabase } from '../../lib/supabase'
+import { api } from '../../lib/api'
 
 interface ManualAnswerModalProps {
     isOpen: boolean
@@ -40,23 +41,19 @@ export function ManualAnswerModal({ isOpen, onClose, question, onSuccess }: Manu
         setError(null)
         try {
             const { data: { session } } = await supabase.auth.getSession()
-            const authHeader: HeadersInit = session ? { 'Authorization': `Bearer ${session.access_token}` } : {}
 
-            const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:8000'
-            const response = await fetch(`${apiUrl}/api/documents/manual-answer/check?question=${encodeURIComponent(question)}`, {
-                headers: authHeader
-            })
 
-            if (response.ok) {
-                const data = await response.json()
-                if (data.exists) {
-                    setAnswer(data.answer || '')
-                    setExistingDocId(data.doc_id)
-                    setCategory(data.category || 'Manual Answer')
-                    setProgram(data.program || 'All')
-                    setDepartment(data.department || 'All')
-                    setSemester(data.semester || 0)
-                }
+            const token = session?.access_token
+
+            const data = await api.checkManualAnswer(question, token)
+
+            if (data.exists) {
+                setAnswer(data.answer || '')
+                setExistingDocId(data.doc_id || null)
+                setCategory(data.category || 'Manual Answer')
+                setProgram(data.program || 'All')
+                setDepartment(data.department || 'All')
+                setSemester(data.semester || 0)
             }
         } catch (err) {
             console.error('Error checking existing answer:', err)
@@ -82,38 +79,14 @@ export function ManualAnswerModal({ isOpen, onClose, question, onSuccess }: Manu
                 throw new Error('Not authenticated')
             }
 
-            const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:8000'
-            const response = await fetch(`${apiUrl}/api/documents/manual-answer`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({
-                    question,
-                    answer: answer.trim(),
-                    category,
-                    program,
-                    department,
-                    semester,
-                    doc_id: existingDocId
-                })
-            })
-
-            if (!response.ok) {
-                const contentType = response.headers.get('content-type')
-                let errorMessage = `Request failed with status ${response.status}`
-
-                if (contentType && contentType.includes('application/json')) {
-                    const errorData = await response.json()
-                    errorMessage = errorData.detail || errorMessage
-                } else {
-                    const errorText = await response.text()
-                    errorMessage = errorText || errorMessage
-                }
-
-                throw new Error(errorMessage)
-            }
+            await api.submitManualAnswer({
+                question,
+                answer: answer.trim(),
+                category,
+                program,
+                department,
+                semester
+            }, existingDocId, session.access_token)
 
             setAnswer('')
             setCategory('Manual Answer')

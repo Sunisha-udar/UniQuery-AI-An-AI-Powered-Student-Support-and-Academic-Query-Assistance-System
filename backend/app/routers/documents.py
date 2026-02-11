@@ -257,7 +257,7 @@ async def undo_rename(doc_id: str):
         history_service.mark_as_undone(latest_rename.get('id'))
         
         # Record the undo as a new rename operation
-        history_service.record_rename(doc_id, current_title, previous_title, renamed_by="admin (undo)")
+        history_service.record_rename(doc_id, current_title, previous_title, renamed_by=None)
         
         return {
             "success": True,
@@ -513,7 +513,7 @@ async def submit_manual_answer(request: ManualAnswerRequest, authorization: str 
             'version': 1,
             'chunk_count': len(chunks),
             'storage_path': None,  # No PDF for manual answers
-            'uploaded_by': 'admin',
+            'uploaded_by': None,
         }
         
         if is_update:
@@ -733,7 +733,7 @@ async def upload_document(
             'version': 1,
             'chunk_count': len(chunks),
             'storage_path': pdf_url,
-            'uploaded_by': 'admin',  # TODO: Get from auth context
+            'uploaded_by': None,  # TODO: Get from auth context
         }
         db_service.create_document_metadata(supabase_data)
         logger.info(f"Document metadata saved to Supabase")

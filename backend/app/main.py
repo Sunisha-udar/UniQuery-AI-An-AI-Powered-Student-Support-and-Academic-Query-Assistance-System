@@ -5,8 +5,12 @@ Main entry point for the API server
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 import logging
+import os
+from pathlib import Path
 
 from app.routers import auth, query, documents, debug
 from app.services.qdrant_service import get_qdrant_service
@@ -79,15 +83,84 @@ app.include_router(query.router, prefix="/api/query", tags=["Query"])
 app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
 app.include_router(debug.router, prefix="/api/debug", tags=["Debug"])
 
-
-@app.get("/")
-async def root():
-    return {
-        "name": "UniQuery AI API",
-        "version": "1.0.0",
-        "status": "running",
-        "docs": "/docs"
-    }
+# Serve frontend static files (for ngrok/mobile testing)
+frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
+if frontend_dist.exists():
+    logger.info(f"Serving frontend from: {frontend_dist}")
+    
+    # Mount static assets
+    app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="assets")
+    
+    # Serve other static files
+    @app.get("/pwa-{size}.png")
+    async def serve_pwa_icons(size: str):
+        icon_path = frontend_dist / f"pwa-{size}.png"
+        if icon_path.exists():
+            return FileResponse(icon_path)
+        return {"error": "Icon not found"}
+    
+    @app.get("/manifest.webmanifest")
+    async def serve_manifest():
+        manifest_path = frontend_dist / "manifest.webmanifest"
+        if manifest_path.exists():
+            return FileResponse(manifest_path, media_type="application/manifest+json")
+        return {"error": "Manifest not found"}
+    
+    @app.get("/sw.js")
+    async def serve_sw():
+        sw_path = frontend_dist / "sw.js"
+        if sw_path.exists():
+            return FileResponse(sw_path, media_type="application/javascript")
+        return {"error": "Service worker not found"}
+    
+    @app.get("/registerSW.js")
+    async def serve_register_sw():
+        reg_path = frontend_dist / "registerSW.js"
+        if reg_path.exists():
+            return FileResponse(reg_path, media_type="application/javascript")
+        return {"error": "Register SW not found"}
+    
+    @app.get("/workbox-{filename}.js")
+    async def serve_workbox(filename: str):
+        wb_path = frontend_dist / f"workbox-{filename}.js"
+        if wb_path.exists():
+            return FileResponse(wb_path, media_type="application/javascript")
+        return {"error": "Workbox file not found"}
+    
+    # Serve favicon and other root files
+    @app.get("/{filename}.{ext}")
+    async def serve_root_files(filename: str, ext: str):
+        file_path = frontend_dist / f"{filename}.{ext}"
+        if file_path.exists():
+            return FileResponse(file_path)
+        # If not found, continue to index.html catch-all
+        return FileResponse(frontend_dist / "index.html", media_type="text/html")
+    
+    # Catch-all route for SPA (must be last)
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        # If it's an API route, let it 404 naturally
+        if full_path.startswith("api/"):
+            from fastapi.responses import JSONResponse
+            return JSONResponse(status_code=404, content={"error": "Not found"})
+        
+        # For all other routes, serve index.html (SPA routing)
+        index_path = frontend_dist / "index.html"
+        if index_path.exists():
+            return FileResponse(index_path, media_type="text/html")
+        return {"error": "Frontend not built. Run 'cd frontend && npm run build'"}
+else:
+    logger.warning("Frontend dist folder not found. API-only mode.")
+    
+    @app.get("/")
+    async def root():
+        return {
+            "name": "UniQuery AI API",
+            "version": "1.0.0",
+            "status": "running",
+            "docs": "/docs",
+            "note": "Frontend not available. Build with 'cd frontend && npm run build'"
+        }
 
 
 @app.get("/health")

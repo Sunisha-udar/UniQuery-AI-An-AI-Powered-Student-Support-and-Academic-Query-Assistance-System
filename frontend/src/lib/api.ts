@@ -3,8 +3,43 @@
  * Handles all communication with FastAPI backend
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-console.log('[API] Using API URL:', API_BASE_URL);
+// Smart API URL detection for mobile/ngrok support
+const getApiBaseUrl = (): string => {
+  // 1. Check environment variable first
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+
+  const currentHost = window.location.hostname;
+
+  // 2. If running on ngrok (mobile testing), use same origin
+  if (currentHost.includes('ngrok')) {
+    const apiUrl = `${window.location.protocol}//${window.location.host}`;
+    console.log('[API] Detected ngrok environment, using:', apiUrl);
+    return apiUrl;
+  }
+
+  // 3. If accessing via local network IP (mobile on same network)
+  if (currentHost.match(/^\d+\.\d+\.\d+\.\d+$/)) {
+    // Return empty string to use relative path (proxied by Vite)
+    console.log('[API] Detected local network IP, using relative path (via proxy)');
+    return '';
+  }
+
+  // 4. If in production (vercel/deployed), use same origin
+  if (currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
+    const apiUrl = `${window.location.protocol}//${window.location.host}`;
+    console.log('[API] Detected production environment, using:', apiUrl);
+    return apiUrl;
+  }
+
+  // 5. Default to localhost for local development
+  console.log('[API] Using localhost for development');
+  return 'http://localhost:8000';
+};
+
+const API_BASE_URL = getApiBaseUrl();
+console.log('[API] Final API URL:', API_BASE_URL);
 
 // Warm up backend on app load (helps with Render cold starts)
 const warmUpBackend = async () => {
@@ -12,8 +47,8 @@ const warmUpBackend = async () => {
     console.log('[API] Warming up backend...');
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000); // 5s timeout
-    
-    await fetch(`${API_BASE_URL}/health`, { 
+
+    await fetch(`${API_BASE_URL}/health`, {
       signal: controller.signal,
       mode: 'cors'
     });
@@ -125,13 +160,13 @@ class ApiClient {
    */
   async queryDocuments(params: QueryParams): Promise<QueryResponse> {
     console.log('[API] Querying documents with:', params);
-    
+
     // Add timeout for slow backend
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
     try {
-      const response = await fetch(`${this.baseUrl}/api/query`, {
+      const response = await fetch(`${this.baseUrl}/api/query/`, {
         method: 'POST',
         signal: controller.signal,
         headers: {
@@ -181,14 +216,33 @@ class ApiClient {
     if (filters?.program) params.append('program', filters.program);
     if (filters?.department) params.append('department', filters.department);
 
-    const url = `${this.baseUrl}/api/documents${params.toString() ? '?' + params.toString() : ''}`;
-    const response = await fetch(url);
+    const url = `${this.baseUrl}/api/documents/${params.toString() ? '?' + params.toString() : ''}`;
+    console.log('[API] Fetching documents from:', url);
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch documents');
+    try {
+      const response = await fetch(url, {
+        mode: 'cors',
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        console.error('[API] Documents fetch failed:', response.status, errorText);
+        throw new Error(`Failed to fetch documents: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('[API] Documents fetched successfully:', data.length, 'documents');
+      return data;
+    } catch (error) {
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.error('[API] Network error - check if backend is reachable:', this.baseUrl);
+        throw new Error(`Cannot reach backend at ${this.baseUrl}. Check your VITE_API_URL configuration.`);
+      }
+      throw error;
     }
-
-    return response.json();
   }
 
   /**
@@ -248,6 +302,67 @@ class ApiClient {
 
     if (!response.ok) {
       throw new Error('Failed to get rename history');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Check if a manual answer exists
+   */
+  async checkManualAnswer(question: string, token?: string): Promise<{ exists: boolean; answer?: string; doc_id?: string; category?: string; program?: string; department?: string; semester?: number }> {
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/documents/manual-answer/check?question=${encodeURIComponent(question)}`, {
+      method: 'GET',
+      headers
+    });
+
+    if (!response.ok) {
+      // Return false if not found or error
+      return { exists: false };
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Submit a manual answer
+   */
+  async submitManualAnswer(
+    data: {
+      question: string;
+      answer: string;
+      category: string;
+      program: string;
+      department: string;
+      semester: number;
+    },
+    doc_id?: string | null,
+    token?: string
+  ): Promise<{ success: boolean; message: string }> {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const payload = { ...data, doc_id };
+
+    const response = await fetch(`${this.baseUrl}/api/documents/manual-answer`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Failed to submit manual answer' }));
+      throw new Error(error.detail || 'Failed to submit manual answer');
     }
 
     return response.json();

@@ -141,3 +141,63 @@ export async function getUserQueryCount(userId: string): Promise<number> {
 
     return count || 0
 }
+
+/**
+ * Delete a user account and all associated data (admin only)
+ * This will cascade delete all related data: queries, chat history, etc.
+ */
+export async function deleteUser(userId: string): Promise<void> {
+    // 1. Verify user exists and get their info
+    const { data: user, error: fetchError } = await supabase
+        .from('profiles')
+        .select('role, email')
+        .eq('id', userId)
+        .single()
+
+    if (fetchError || !user) {
+        console.error('User not found:', fetchError)
+        throw new Error(`Failed to delete user: User not found`)
+    }
+
+    // 2. If deleting an admin, check if it's the last one
+    if (user.role === 'admin') {
+        const { count, error: countError } = await supabase
+            .from('profiles')
+            .select('*', { count: 'exact', head: true })
+            .eq('role', 'admin')
+
+        if (countError) {
+            console.error('Error checking admin count:', countError)
+            throw new Error(`Failed to delete user: Error checking admin count`)
+        }
+
+        if (count !== null && count <= 1) {
+            console.error('Cannot delete the last administrator')
+            throw new Error('Cannot delete the last administrator. There must be at least one admin.')
+        }
+    }
+
+    // 3. Delete the user using Supabase Admin API
+    // This will trigger cascade deletion of all related data via database constraints
+    const { error: deleteError } = await supabase.auth.admin.deleteUser(userId)
+
+    if (deleteError) {
+        console.error('Error deleting user from auth:', deleteError)
+        
+        // Fallback: Try deleting from profiles table directly
+        // The cascade constraints should handle related data
+        const { error: dbDeleteError } = await supabase
+            .from('profiles')
+            .delete()
+            .eq('id', userId)
+
+        if (dbDeleteError) {
+            console.error('Error deleting user from database:', dbDeleteError)
+            throw new Error(`Failed to delete user: ${dbDeleteError.message}`)
+        }
+        
+        console.log(`User ${userId} (${user.email}) deleted from database`)
+    } else {
+        console.log(`User ${userId} (${user.email}) deleted successfully`)
+    }
+}

@@ -16,10 +16,12 @@ import { clsx } from 'clsx'
 import { UserDetailsModal } from '../../components/admin/UserDetailsModal'
 import { UserActionMenu } from '../../components/admin/UserActionMenu'
 import { SuspendUserModal } from '../../components/admin/SuspendUserModal'
+import { DeleteUserModal } from '../../components/admin/DeleteUserModal'
 import {
     getUserDetails,
     suspendUser as suspendUserAPI,
     updateUserRole as updateUserRoleAPI,
+    deleteUser as deleteUserAPI,
     type FullUserProfile
 } from '../../lib/adminUserManagement'
 
@@ -54,6 +56,8 @@ export function AdminUsers() {
     const toastTimeoutRef = useRef<any>(null)
     const [suspendModalOpen, setSuspendModalOpen] = useState(false)
     const [userToSuspend, setUserToSuspend] = useState<{ id: string; email: string; suspend: boolean } | null>(null)
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+    const [userToDelete, setUserToDelete] = useState<FullUserProfile | null>(null)
     const ITEMS_PER_PAGE = 10
 
     useEffect(() => {
@@ -256,6 +260,48 @@ export function AdminUsers() {
             showToast('Failed to change user role', 'error')
         } finally {
             setActionLoading(false)
+        }
+    }
+
+    // Handler to open delete confirmation modal
+    const handleDeleteUser = async (userId: string) => {
+        try {
+            setActionLoading(true)
+            const fullProfile = await getUserDetails(userId)
+            setUserToDelete(fullProfile)
+            setDeleteModalOpen(true)
+        } catch (err) {
+            console.error('Error fetching user details for deletion:', err)
+            showToast('Failed to load user details', 'error')
+        } finally {
+            setActionLoading(false)
+        }
+    }
+
+    // Handler to confirm user deletion
+    const confirmDeleteUser = async () => {
+        if (!userToDelete) return
+
+        try {
+            await deleteUserAPI(userToDelete.id)
+
+            // Remove user from local state
+            setUsers(prev => prev.filter(u => u.id !== userToDelete.id))
+
+            // Close details modal if viewing the deleted user
+            if (selectedUser?.id === userToDelete.id) {
+                setIsDetailsModalOpen(false)
+                setSelectedUser(null)
+            }
+
+            showToast('User deleted successfully', 'success')
+
+            setDeleteModalOpen(false)
+            setUserToDelete(null)
+        } catch (err) {
+            console.error('Error deleting user:', err)
+            const errorMessage = err instanceof Error ? err.message : 'Failed to delete user'
+            throw new Error(errorMessage) // Re-throw to be caught by modal
         }
     }
 
@@ -469,6 +515,7 @@ export function AdminUsers() {
                                                             onViewDetails={() => handleViewDetails(user)}
                                                             onSuspend={(suspend) => handleSuspendUser(user.id, suspend)}
                                                             onChangeRole={(role) => handleChangeRole(user.id, role)}
+                                                            onDeleteUser={() => handleDeleteUser(user.id)}
                                                         />
                                                     </td>
                                                 </tr>
@@ -501,6 +548,7 @@ export function AdminUsers() {
                                                         onViewDetails={() => handleViewDetails(user)}
                                                         onSuspend={(suspend) => handleSuspendUser(user.id, suspend)}
                                                         onChangeRole={(role) => handleChangeRole(user.id, role)}
+                                                        onDeleteUser={() => handleDeleteUser(user.id)}
                                                     />
                                                 </div>
                                             </div>
@@ -651,6 +699,18 @@ export function AdminUsers() {
                 isSuspending={userToSuspend?.suspend || false}
                 loading={actionLoading}
             />
+
+            {/* Delete User Confirmation Modal */}
+            {userToDelete && (
+                <DeleteUserModal
+                    user={userToDelete}
+                    onClose={() => {
+                        setDeleteModalOpen(false)
+                        setUserToDelete(null)
+                    }}
+                    onConfirm={confirmDeleteUser}
+                />
+            )}
 
             {/* Toast Notification */}
             {

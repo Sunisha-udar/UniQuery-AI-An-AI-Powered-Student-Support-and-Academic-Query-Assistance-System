@@ -25,6 +25,7 @@ interface AuthContextType {
     signup: (email: string, password: string, role: UserRole, profile?: Partial<User>) => Promise<void>
     updateUser: (data: Partial<User>) => Promise<void>
     logout: () => Promise<void>
+    deleteAccount: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -317,8 +318,50 @@ export function AuthProvider({ children }: AuthProviderProps) {
         sessionStorage.clear()
     }
 
+    const deleteAccount = async () => {
+        if (!user) {
+            throw new Error('No user logged in')
+        }
+
+        try {
+            console.log('[Auth] Deleting account for user:', user.uid)
+
+            // Delete user using Supabase Admin API
+            // This will cascade delete all related data via database constraints
+            const { error } = await supabase.auth.admin.deleteUser(user.uid)
+
+            if (error) {
+                console.error('[Auth] Error deleting user from auth:', error)
+                
+                // Fallback: Try deleting from profiles table directly
+                const { error: dbError } = await supabase
+                    .from('profiles')
+                    .delete()
+                    .eq('id', user.uid)
+
+                if (dbError) {
+                    console.error('[Auth] Error deleting user from database:', dbError)
+                    throw new Error('Failed to delete account. Please try again.')
+                }
+            }
+
+            console.log('[Auth] Account deleted successfully')
+
+            // Sign out and clear state
+            setUser(null)
+            localStorage.clear()
+            sessionStorage.clear()
+
+            // Sign out to ensure clean state
+            await supabase.auth.signOut({ scope: 'local' })
+        } catch (error) {
+            console.error('[Auth] Delete account error:', error)
+            throw error
+        }
+    }
+
     return (
-        <AuthContext.Provider value={{ user, loading, login, signup, updateUser, logout }}>
+        <AuthContext.Provider value={{ user, loading, login, signup, updateUser, logout, deleteAccount }}>
             {children}
         </AuthContext.Provider>
     )

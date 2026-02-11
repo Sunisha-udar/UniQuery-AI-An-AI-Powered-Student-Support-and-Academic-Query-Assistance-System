@@ -69,19 +69,24 @@ export function AdminDocuments() {
         try {
             setLoading(true)
             setError(null)
+            console.log('[AdminDocuments] Loading documents...')
             const docs = await api.getDocuments()
-            setDocuments(docs)
-        } catch (err) {
-            // Only show error if it's not a network issue or empty collection
-            const errorMessage = err instanceof Error ? err.message : 'Failed to load documents'
-
-            // Don't show error for empty collections
-            if (!errorMessage.includes('Failed to fetch')) {
-                setError(errorMessage)
+            console.log('[AdminDocuments] Documents loaded:', docs)
+            
+            // Ensure we always set an array
+            if (Array.isArray(docs)) {
+                setDocuments(docs)
+            } else {
+                console.error('[AdminDocuments] Received non-array response:', docs)
+                setError('Invalid response from server')
+                setDocuments([])
             }
-            console.error('Error loading documents:', err)
-
-            // Set empty array on error so UI shows "No documents found"
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to load documents'
+            console.error('[AdminDocuments] Error loading documents:', err)
+            
+            // Show the actual error message to help diagnose issues
+            setError(errorMessage)
             setDocuments([])
         } finally {
             setLoading(false)
@@ -375,39 +380,39 @@ export function AdminDocuments() {
                                             </div>
 
                                             {/* Document Details Grid */}
-                                            <div className="grid grid-cols-2 gap-3">
+                                            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                                                 {/* Program */}
-                                                <div>
+                                                <div className="min-w-0">
                                                     <p className="text-xs text-text-muted mb-1">Program</p>
-                                                    <p className="text-sm text-text font-medium">{doc.program}</p>
+                                                    <p className="text-sm text-text font-medium truncate" title={doc.program}>{doc.program}</p>
                                                 </div>
 
                                                 {/* Department */}
-                                                <div>
+                                                <div className="min-w-0">
                                                     <p className="text-xs text-text-muted mb-1">Department</p>
-                                                    <p className="text-sm text-text font-medium">{doc.department}</p>
+                                                    <p className="text-sm text-text font-medium truncate" title={doc.department}>{doc.department}</p>
                                                 </div>
 
                                                 {/* Version */}
-                                                <div>
+                                                <div className="min-w-0">
                                                     <p className="text-xs text-text-muted mb-1">Version</p>
                                                     <p className="text-sm text-text font-medium">v{doc.version}</p>
                                                 </div>
 
                                                 {/* Chunks */}
-                                                <div>
+                                                <div className="min-w-0">
                                                     <p className="text-xs text-text-muted mb-1">Chunks</p>
                                                     <p className="text-sm text-text font-medium">{doc.chunk_count}</p>
                                                 </div>
-                                            </div>
 
-                                            {/* Upload Date */}
-                                            <div className="mt-3 pt-3 border-t border-border">
-                                                <div className="flex items-center justify-between text-xs">
-                                                    <span className="text-text-muted">Uploaded</span>
-                                                    <span className="text-text font-medium">
-                                                        {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : 'N/A'}
-                                                    </span>
+                                                {/* Uploaded Date - Now in Grid */}
+                                                <div className="col-span-2 mt-1 pt-3 border-t border-border">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xs text-text-muted">Uploaded</span>
+                                                        <span className="text-xs text-text font-medium">
+                                                            {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : 'N/A'}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

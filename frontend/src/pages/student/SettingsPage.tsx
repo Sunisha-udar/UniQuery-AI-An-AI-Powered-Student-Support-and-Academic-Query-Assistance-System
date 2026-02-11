@@ -1,15 +1,19 @@
 import { useState, type FormEvent, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../../contexts/AuthContext'
 import { Card, CardContent, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { SaveChangesModal } from '../../components/ui/SaveChangesModal'
-import { User, Mail, Phone, BookOpen, Building, Hash, FileText, Settings } from 'lucide-react'
+import { DeleteAccountModal } from '../../components/ui/DeleteAccountModal'
+import { User, Mail, Phone, BookOpen, Building, Hash, FileText, Settings, AlertTriangle } from 'lucide-react'
 
 export function SettingsPage() {
-    const { user, updateUser } = useAuth()
+    const { user, updateUser, deleteAccount } = useAuth()
+    const navigate = useNavigate()
     const [showSaveModal, setShowSaveModal] = useState(false)
+    const [showDeleteModal, setShowDeleteModal] = useState(false)
     const [success, setSuccess] = useState('')
     const [error, setError] = useState('')
 
@@ -99,6 +103,17 @@ export function SettingsPage() {
         })
         setSuccess('Profile updated successfully!')
         setTimeout(() => setSuccess(''), 3000)
+    }
+
+    const handleDeleteAccount = async () => {
+        try {
+            await deleteAccount()
+            // User will be redirected to login after account deletion
+            navigate('/login')
+        } catch (err) {
+            console.error('Error deleting account:', err)
+            throw err // Re-throw to be caught by modal
+        }
     }
 
     return (
@@ -218,6 +233,33 @@ export function SettingsPage() {
                     </CardContent>
                 </Card>
 
+                {/* Danger Zone */}
+                <Card className="border border-red-500/20 shadow-sm">
+                    <CardHeader className="border-b border-red-500/20 bg-red-500/5">
+                        <div className="flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 text-red-600" />
+                            <h2 className="text-sm font-semibold text-red-600">Danger Zone</h2>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                            <div className="flex-1">
+                                <h3 className="font-medium text-text">Delete Account</h3>
+                                <p className="text-sm text-text-muted mt-1">
+                                    Permanently delete your account and all associated data. This action cannot be undone.
+                                </p>
+                            </div>
+                            <Button
+                                type="button"
+                                onClick={() => setShowDeleteModal(true)}
+                                className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/30"
+                            >
+                                Delete Account
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+
                 <SaveChangesModal
                     isOpen={showSaveModal}
                     onClose={() => setShowSaveModal(false)}
@@ -225,6 +267,13 @@ export function SettingsPage() {
                     title="Save Profile Changes"
                     description="Are you sure you want to save these changes to your profile?"
                     changes={changes}
+                />
+
+                <DeleteAccountModal
+                    isOpen={showDeleteModal}
+                    userEmail={user?.email || ''}
+                    onClose={() => setShowDeleteModal(false)}
+                    onConfirm={handleDeleteAccount}
                 />
             </div>
         </div>

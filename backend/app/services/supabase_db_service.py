@@ -55,7 +55,7 @@ class SupabaseDBService:
                 'version': doc_data.get('version', 1),
                 'chunk_count': doc_data.get('chunk_count', 0),
                 'storage_path': doc_data.get('storage_path'),
-                'uploaded_by': doc_data.get('uploaded_by', 'admin'),
+                'uploaded_by': doc_data.get('uploaded_by'),
                 'uploaded_at': datetime.utcnow().isoformat(),
                 'valid_from': doc_data.get('valid_from'),
                 'valid_to': doc_data.get('valid_to'),
