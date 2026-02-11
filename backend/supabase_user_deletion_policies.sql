@@ -23,10 +23,7 @@ USING (auth.uid() = id);
 CREATE POLICY "Admins can delete any account"
 ON profiles FOR DELETE
 USING (
-  EXISTS (
-    SELECT 1 FROM profiles
-    WHERE id = auth.uid() AND role = 'admin'
-  )
+  is_admin()
 );
 
 -- =====================================================
@@ -151,7 +148,7 @@ BEGIN
   );
   RETURN OLD;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Create trigger to log deletions
 DROP TRIGGER IF EXISTS log_user_deletion_trigger ON profiles;
