@@ -2,10 +2,14 @@ import { useState, type FormEvent, useRef, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { api, type Citation } from '../../lib/api'
-import { createChatSession, addMessageToSession, loadChatSessions, updateSessionTitle, saveUserQuery } from '../../lib/chatHistory'
+import { createChatSession, addMessageToSession, loadChatSessions, updateSessionTitle, saveUserQuery, rateMessage } from '../../lib/chatHistory'
 import { PlaceholdersAndVanishInput } from '../../components/ui/placeholders-and-vanish-input'
 import {
-    AlertCircle
+    AlertCircle,
+    ThumbsUp,
+    ThumbsDown,
+    Copy,
+    Check
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -18,6 +22,7 @@ interface Message {
     text: string
     citations?: Citation[]
     confidence?: number
+    feedback?: 'up' | 'down'
 }
 
 const EXAMPLE_QUESTIONS = [
@@ -41,6 +46,7 @@ export function StudentDashboard() {
     const [isLoadingHistory, setIsLoadingHistory] = useState(true)
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
     const [filters, setFilters] = useState({ program: '', department: '', semester: '' })
+    const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
 
 
     const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -127,6 +133,33 @@ export function StudentDashboard() {
 
 
 
+    const handleRateMessage = async (messageId: string, feedback: 'up' | 'down') => {
+        if (!currentSessionId) return
+
+        // Optimistic update
+        setMessages(prev => prev.map(msg =>
+            msg.id === messageId
+                ? { ...msg, feedback: msg.feedback === feedback ? undefined : feedback }
+                : msg
+        ))
+
+        try {
+            await rateMessage(currentSessionId, messageId, feedback)
+        } catch (err) {
+            console.error('Failed to rate message:', err)
+        }
+    }
+
+    const handleCopyMessage = async (messageId: string, text: string) => {
+        try {
+            await navigator.clipboard.writeText(text)
+            setCopiedMessageId(messageId)
+            setTimeout(() => setCopiedMessageId(null), 2000)
+        } catch (err) {
+            console.error('Failed to copy message:', err)
+        }
+    }
+
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
         if (!query.trim() || !user?.uid || isTyping) return
@@ -206,7 +239,8 @@ export function StudentDashboard() {
                 currentQuery,
                 assistantMsg.text,
                 assistantMsg.confidence || 0,
-                assistantMsg.citations
+                assistantMsg.citations,
+                assistantMsg.id
             )
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to get answer')
@@ -256,7 +290,7 @@ export function StudentDashboard() {
                 {messages.length > 0 && (
                     <div className="max-w-6xl mx-auto space-y-10 px-6 pt-16 md:pt-24 pb-10">
                         {messages.map((msg) => (
-                            <div key={msg.id} className={`flex animate-in fade-in slide-in-from-bottom-4 duration-500 ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            <div key={msg.id} className={`flex group animate-in fade-in slide-in-from-bottom-4 duration-500 ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                                 <div className={`${msg.type === 'user' ? 'max-w-[85%]' : 'max-w-full'}`}>
                                     <div className={`${msg.type === 'user'
                                         ? 'bg-secondary text-secondary-foreground rounded-2xl px-5 py-3'
@@ -289,6 +323,52 @@ export function StudentDashboard() {
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* Feedback Actions */}
+                                    {msg.type === 'assistant' && !streamingMessage && (
+                                        <div className="flex items-center gap-2 mt-2 pl-2">
+                                            <button
+                                                onClick={() => handleCopyMessage(msg.id, msg.text)}
+                                                className={`p-1.5 rounded-lg transition-all flex items-center gap-1.5 ${copiedMessageId === msg.id
+                                                    ? 'bg-green-500 text-white shadow-sm'
+                                                    : 'hover:bg-secondary/50 text-text-muted hover:text-text'
+                                                    }`}
+                                                title="Copy to clipboard"
+                                            >
+                                                {copiedMessageId === msg.id ? (
+                                                    <>
+                                                        <Check className="w-3.5 h-3.5" />
+                                                        <span className="text-[11px] font-bold uppercase tracking-wider">Copied</span>
+                                                    </>
+                                                ) : (
+                                                    <Copy className="w-4 h-4" />
+                                                )}
+                                            </button>
+                                            <div className="w-px h-4 bg-border/50 mx-1" />
+                                            <button
+                                                onClick={() => handleRateMessage(msg.id, 'up')}
+                                                className={`p-1.5 rounded-lg transition-colors ${msg.feedback === 'up'
+                                                    ? 'bg-green-500/10 text-green-500'
+                                                    : 'hover:bg-secondary/50 text-text-muted hover:text-text'
+                                                    }`}
+                                                title="Helpful"
+                                            >
+                                                <ThumbsUp className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleRateMessage(msg.id, 'down')}
+                                                className={`p-1.5 rounded-lg transition-colors ${msg.feedback === 'down'
+                                                    ? 'bg-red-500/10 text-red-500'
+                                                    : 'hover:bg-secondary/50 text-text-muted hover:text-text'
+                                                    }`}
+                                                title="Not helpful"
+                                            >
+                                                <ThumbsDown className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    )}
+
+
                                 </div>
                             </div>
                         ))}
