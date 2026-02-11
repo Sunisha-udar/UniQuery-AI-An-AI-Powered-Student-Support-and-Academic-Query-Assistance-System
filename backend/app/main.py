@@ -14,6 +14,7 @@ from pathlib import Path
 
 from app.routers import auth, query, documents, debug
 from app.services.qdrant_service import get_qdrant_service
+from app.services.supabase_client import get_supabase_client
 from app.config import get_settings
 
 # Configure logging
@@ -83,6 +84,49 @@ app.include_router(query.router, prefix="/api/query", tags=["Query"])
 app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
 app.include_router(debug.router, prefix="/api/debug", tags=["Debug"])
 
+
+@app.get("/health")
+@app.get("/api/health")
+async def health_check():
+    """
+    Health check endpoint with Qdrant and Database info
+    Returns flat structure for easier frontend consumption
+    """
+    response = {
+        "status": "healthy",
+        "qdrant_connected": False,
+        "database_connected": False,
+        "message": "Server is running",
+        "services": {}
+    }
+
+    # Check Qdrant
+    try:
+        qdrant = get_qdrant_service()
+        # Simple connectivity check
+        if qdrant.client:
+            response["qdrant_connected"] = True
+            response["services"]["qdrant"] = {"status": "connected"}
+    except Exception as e:
+        logger.error(f"Health check (Qdrant) error: {e}")
+        response["services"]["qdrant"] = {"status": "error", "message": str(e)}
+
+    # Check Supabase (Database)
+    try:
+        supabase = get_supabase_client()
+        # Simple query to check connection
+        user = supabase.auth.get_session()
+        supabase.table("documents").select("id", count="exact").limit(0).execute()
+        
+        response["database_connected"] = True
+        response["services"]["database"] = {"status": "connected"}
+    except Exception as e:
+        logger.error(f"Health check (Database) error: {e}")
+        response["services"]["database"] = {"status": "error", "message": str(e)}
+    
+    return response
+
+
 # Serve frontend static files (for ngrok/mobile testing)
 frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
 if frontend_dist.exists():
@@ -136,6 +180,7 @@ if frontend_dist.exists():
         # If not found, continue to index.html catch-all
         return FileResponse(frontend_dist / "index.html", media_type="text/html")
     
+
     # Catch-all route for SPA (must be last)
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
@@ -160,33 +205,6 @@ else:
             "status": "running",
             "docs": "/docs",
             "note": "Frontend not available. Build with 'cd frontend && npm run build'"
-        }
-
-
-@app.get("/health")
-@app.get("/api/health")
-async def health_check():
-    """
-    Health check endpoint with Qdrant info
-    """
-    try:
-        qdrant = get_qdrant_service()
-        collection_info = qdrant.get_collection_info()
-        
-        return {
-            "status": "healthy",
-            "services": {
-                "qdrant": {
-                    "status": "healthy",
-                    "collection": collection_info
-                }
-            }
-        }
-    except Exception as e:
-        logger.error(f"Health check error: {e}")
-        return {
-            "status": "healthy",
-            "message": "Server is running"
         }
 
 
