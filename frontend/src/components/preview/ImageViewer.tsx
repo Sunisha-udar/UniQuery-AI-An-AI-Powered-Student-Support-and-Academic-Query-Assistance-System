@@ -76,11 +76,11 @@ export function ImageViewer({ fileUrl, fileName = 'image' }: ImageViewerProps) {
         >
           <ZoomOut className="w-4 h-4" />
         </Button>
-        
+
         <div className="px-4 py-1 bg-surface border border-border rounded-lg min-w-[80px] text-center">
           <span className="text-sm font-medium text-text">{zoom}%</span>
         </div>
-        
+
         <Button
           variant="secondary"
           size="sm"
@@ -112,15 +112,6 @@ export function ImageViewer({ fileUrl, fileName = 'image' }: ImageViewerProps) {
         </Button>
 
         <div className="w-px h-6 bg-border mx-2" />
-
-        <a
-          href={fileUrl}
-          download={fileName}
-          className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm"
-        >
-          <Download className="w-4 h-4" />
-          Download
-        </a>
       </div>
 
       {/* Image Container */}

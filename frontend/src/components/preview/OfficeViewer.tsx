@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Download, ExternalLink, AlertCircle, Loader2 } from 'lucide-react'
-import { Button } from '../ui/Button'
 
 interface OfficeViewerProps {
   fileUrl: string
@@ -25,39 +24,7 @@ export function OfficeViewer({ fileUrl, fileName = 'document' }: OfficeViewerPro
 
   return (
     <div className="w-full h-full flex flex-col bg-surface">
-      {/* Info Banner */}
-      <div className="px-4 py-3 bg-primary/10 border-b border-primary/20 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0">
-            <ExternalLink className="w-4 h-4 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-text">Office Document Preview</p>
-            <p className="text-xs text-text-muted">Powered by Google Docs Viewer</p>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <a
-            href={fileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-surface border border-border text-text rounded-lg hover:bg-background transition-colors text-sm"
-          >
-            <ExternalLink className="w-4 h-4" />
-            Open in New Tab
-          </a>
-          
-          <a
-            href={fileUrl}
-            download={fileName}
-            className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm"
-          >
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">Download</span>
-          </a>
-        </div>
-      </div>
+
 
       {/* Iframe Container */}
       <div className="relative flex-1 overflow-hidden">
