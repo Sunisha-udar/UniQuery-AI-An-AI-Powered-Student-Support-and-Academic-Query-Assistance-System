@@ -11,7 +11,7 @@ export function Card({ children, className, hover = false }: CardProps) {
     return (
         <div
             className={clsx(
-                'bg-surface rounded-xl border border-border',
+                'bg-surface rounded-xl border border-border overflow-hidden',
                 hover && 'cursor-pointer transition-shadow duration-200 hover:shadow-md',
                 className
             )}

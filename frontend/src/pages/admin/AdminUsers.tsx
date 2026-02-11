@@ -56,7 +56,6 @@ export function AdminUsers() {
     const toastTimeoutRef = useRef<any>(null)
     const [suspendModalOpen, setSuspendModalOpen] = useState(false)
     const [userToSuspend, setUserToSuspend] = useState<{ id: string; email: string; suspend: boolean } | null>(null)
-    const [deleteModalOpen, setDeleteModalOpen] = useState(false)
     const [userToDelete, setUserToDelete] = useState<FullUserProfile | null>(null)
     const ITEMS_PER_PAGE = 10
 
@@ -269,7 +268,6 @@ export function AdminUsers() {
             setActionLoading(true)
             const fullProfile = await getUserDetails(userId)
             setUserToDelete(fullProfile)
-            setDeleteModalOpen(true)
         } catch (err) {
             console.error('Error fetching user details for deletion:', err)
             showToast('Failed to load user details', 'error')
@@ -296,7 +294,6 @@ export function AdminUsers() {
 
             showToast('User deleted successfully', 'success')
 
-            setDeleteModalOpen(false)
             setUserToDelete(null)
         } catch (err) {
             console.error('Error deleting user:', err)
@@ -705,7 +702,6 @@ export function AdminUsers() {
                 <DeleteUserModal
                     user={userToDelete}
                     onClose={() => {
-                        setDeleteModalOpen(false)
                         setUserToDelete(null)
                     }}
                     onConfirm={confirmDeleteUser}
@@ -715,12 +711,12 @@ export function AdminUsers() {
             {/* Toast Notification */}
             {
                 toast && (
-                    <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-5 duration-300">
+                    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-5 duration-300">
                         <div className={clsx(
-                            "px-6 py-4 rounded-lg shadow-xl border",
+                            "flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border backdrop-blur-md",
                             toast.type === 'success'
-                                ? "bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400"
-                                : "bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400"
+                                ? "bg-emerald-500/90 border-emerald-500/20 text-white"
+                                : "bg-red-500/90 border-red-500/20 text-white"
                         )}>
                             <p className="text-sm font-medium">{toast.message}</p>
                         </div>

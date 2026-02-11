@@ -10,20 +10,13 @@ interface DeleteUserModalProps {
 }
 
 export function DeleteUserModal({ user, onClose, onConfirm }: DeleteUserModalProps) {
-    const [confirmText, setConfirmText] = useState('')
     const [isDeleting, setIsDeleting] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    // User must type "DELETE" to confirm
-    const isConfirmValid = confirmText === 'DELETE'
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
-        
-        if (!isConfirmValid) {
-            setError('Please type DELETE to confirm')
-            return
-        }
+
 
         setIsDeleting(true)
         setError(null)
@@ -99,21 +92,6 @@ export function DeleteUserModal({ user, onClose, onConfirm }: DeleteUserModalPro
                             )}
                         </div>
 
-                        {/* Confirmation Input */}
-                        <div>
-                            <label className="block text-sm font-medium text-text mb-2">
-                                Type <span className="font-mono font-bold text-red-600">DELETE</span> to confirm
-                            </label>
-                            <input
-                                type="text"
-                                value={confirmText}
-                                onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
-                                placeholder="Type DELETE here"
-                                disabled={isDeleting}
-                                className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-text disabled:opacity-50"
-                                autoComplete="off"
-                            />
-                        </div>
 
                         {/* Error Message */}
                         {error && (
@@ -135,11 +113,11 @@ export function DeleteUserModal({ user, onClose, onConfirm }: DeleteUserModalPro
                         </button>
                         <button
                             type="submit"
-                            disabled={!isConfirmValid || isDeleting}
+                            disabled={isDeleting}
                             className={clsx(
                                 "px-4 py-2 text-sm font-medium text-white rounded-lg transition-all",
                                 "disabled:opacity-50 disabled:cursor-not-allowed",
-                                isConfirmValid && !isDeleting
+                                !isDeleting
                                     ? "bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/30"
                                     : "bg-red-600/50"
                             )}
