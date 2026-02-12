@@ -26,14 +26,6 @@ export function LoginPage() {
         setError('')
         setSubmitting(true)
 
-        // Validate email domain
-        const allowedDomain = '@krmu.edu.in'
-        if (!email.toLowerCase().endsWith(allowedDomain)) {
-            setError(`Only ${allowedDomain} email addresses are allowed.`)
-            setSubmitting(false)
-            return
-        }
-
         try {
             // Clear any stale data first
             sessionStorage.clear()
@@ -84,7 +76,7 @@ export function LoginPage() {
                             <Input
                                 label="Email"
                                 type="email"
-                                placeholder="yourname@krmu.edu.in"
+                                placeholder="you@university.edu"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
