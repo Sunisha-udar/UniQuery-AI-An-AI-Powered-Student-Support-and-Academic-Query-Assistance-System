@@ -119,6 +119,30 @@ interface UploadResponse {
   };
 }
 
+interface FAQItem {
+  id: string;
+  question: string;
+  answer: string;
+  category: string;
+  program?: string;
+  department?: string;
+  semester?: number;
+  view_count: number;
+  is_pinned: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+
+interface CreateFAQRequest {
+  question: string;
+  answer: string;
+  category: string;
+  program?: string;
+  department?: string;
+  semester?: number;
+  is_pinned?: boolean;
+}
+
 class ApiClient {
   private baseUrl: string;
 
@@ -395,6 +419,146 @@ class ApiClient {
 
     return response.json();
   }
+
+  /**
+   * Get all FAQs with optional filtering
+   */
+  async getFAQs(filters?: {
+    category?: string;
+    program?: string;
+    department?: string;
+    limit?: number;
+  }): Promise<FAQItem[]> {
+    const params = new URLSearchParams();
+    if (filters?.category) params.append('category', filters.category);
+    if (filters?.program) params.append('program', filters.program);
+    if (filters?.department) params.append('department', filters.department);
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+
+    const url = `${this.baseUrl}/api/faqs/${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch FAQs');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get popular questions from chat history
+   */
+  async getPopularQuestions(limit: number = 10): Promise<{ question: string; count: number }[]> {
+    const response = await fetch(`${this.baseUrl}/api/faqs/popular?limit=${limit}`);
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch popular questions');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get FAQ categories
+   */
+  async getFAQCategories(): Promise<string[]> {
+    const response = await fetch(`${this.baseUrl}/api/faqs/categories`);
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch FAQ categories');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Create a new FAQ (Admin only)
+   */
+  async createFAQ(faq: CreateFAQRequest, token?: string): Promise<FAQItem> {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/faqs/`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(faq),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Failed to create FAQ' }));
+      throw new Error(error.detail || 'Failed to create FAQ');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Update an FAQ (Admin only)
+   */
+  async updateFAQ(faqId: string, updates: Partial<CreateFAQRequest>, token?: string): Promise<FAQItem> {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/faqs/${faqId}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(updates),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Failed to update FAQ' }));
+      throw new Error(error.detail || 'Failed to update FAQ');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Delete an FAQ (Admin only)
+   */
+  async deleteFAQ(faqId: string, token?: string): Promise<{ success: boolean; message: string }> {
+    const headers: HeadersInit = {};
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/faqs/${faqId}`, {
+      method: 'DELETE',
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete FAQ');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Increment FAQ view count
+   */
+  async incrementFAQView(faqId: string): Promise<{ success: boolean; view_count: number }> {
+    const response = await fetch(`${this.baseUrl}/api/faqs/${faqId}/increment-view`, {
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to increment FAQ view');
+    }
+
+    return response.json();
+  }
 }
 
 // Export singleton instance
@@ -408,4 +572,6 @@ export type {
   Citation,
   Document,
   UploadResponse,
+  FAQItem,
+  CreateFAQRequest,
 };

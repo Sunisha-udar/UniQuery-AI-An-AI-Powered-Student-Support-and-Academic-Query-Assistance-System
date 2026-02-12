@@ -209,12 +209,12 @@ export function PlaceholdersAndVanishInput({
         value={value}
         type="text"
         className={cn(
-          "w-full relative text-base sm:text-lg z-50 border-none bg-transparent text-text h-full rounded-full focus:outline-none focus:ring-0 px-4 text-center font-medium",
+          "w-full relative text-base sm:text-lg z-10 border-none bg-transparent text-text h-full rounded-full focus:outline-none focus:ring-0 px-4 text-center font-medium",
           animating && "text-transparent"
         )}
       />
 
-      <div className="absolute right-2 top-1/2 z-50 -translate-y-1/2 flex items-center gap-2">
+      <div className="absolute right-2 top-1/2 z-10 -translate-y-1/2 flex items-center gap-2">
         <button
           disabled={!value}
           type="submit"

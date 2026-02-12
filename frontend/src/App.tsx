@@ -11,6 +11,7 @@ import { AdminQueries } from './pages/admin/AdminQueries'
 import { AdminAnalytics } from './pages/admin/AdminAnalytics'
 import { AdminSettings } from './pages/admin/AdminSettings'
 import { AdminUsers } from './pages/admin/AdminUsers'
+import { AdminFAQs } from './pages/admin/AdminFAQs'
 import { SettingsPage } from './pages/student/SettingsPage'
 import { FAQPage } from './pages/student/FAQPage'
 import { DashboardLayoutWrapper } from './components/layout/DashboardLayoutWrapper'
@@ -47,6 +48,7 @@ function App() {
               <Route path="/admin/documents" element={<AdminDocuments />} />
               <Route path="/admin/queries" element={<AdminQueries />} />
               <Route path="/admin/analytics" element={<AdminAnalytics />} />
+              <Route path="/admin/faqs" element={<AdminFAQs />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
               <Route path="/admin/users" element={<AdminUsers />} />
             </Route>

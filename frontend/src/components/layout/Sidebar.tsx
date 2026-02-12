@@ -46,6 +46,7 @@ const ADMIN_NAV: NavItem[] = [
     { icon: FileText, label: 'Documents', href: '/admin/documents' },
     { icon: MessageSquare, label: 'Queries', href: '/admin/queries' },
     { icon: BarChart3, label: 'Analytics', href: '/admin/analytics' },
+    { icon: HelpCircle, label: 'FAQs', href: '/admin/faqs' },
     { icon: Users, label: 'Users', href: '/admin/users' },
 ]
 

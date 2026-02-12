@@ -12,7 +12,7 @@ import logging
 import os
 from pathlib import Path
 
-from app.routers import auth, query, documents, debug
+from app.routers import auth, query, documents, debug, faq
 from app.services.qdrant_service import get_qdrant_service
 from app.services.supabase_client import get_supabase_client
 from app.config import get_settings
@@ -82,6 +82,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(query.router, prefix="/api/query", tags=["Query"])
 app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
+app.include_router(faq.router, prefix="/api/faqs", tags=["FAQs"])
 app.include_router(debug.router, prefix="/api/debug", tags=["Debug"])
 
 
