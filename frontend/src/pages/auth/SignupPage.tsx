@@ -82,6 +82,14 @@ export function SignupPage() {
         setError('')
         setSubmitting(true)
 
+        // Validate email domain
+        const allowedDomain = '@krmu.edu.in'
+        if (!email.toLowerCase().endsWith(allowedDomain)) {
+            setError(`Only ${allowedDomain} email addresses are allowed to register.`)
+            setSubmitting(false)
+            return
+        }
+
         try {
             const profile = role === 'student' ? {
                 program,
@@ -137,7 +145,7 @@ export function SignupPage() {
                             <Input
                                 label="Email"
                                 type="email"
-                                placeholder="you@university.edu"
+                                placeholder="yourname@krmu.edu.in"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
