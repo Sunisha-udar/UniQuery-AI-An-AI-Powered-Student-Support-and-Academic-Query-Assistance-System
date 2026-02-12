@@ -49,7 +49,7 @@ backend/venv
 .vscode
 .kombai
 
-ANALYSIS_AND_RECOMMENDATIONS.md
+/docs
 
 # PDF documents (should be in cloud storage)
 krmu/
