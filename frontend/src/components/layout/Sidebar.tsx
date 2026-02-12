@@ -6,6 +6,7 @@ import { LogoutModal } from '../ui/LogoutModal'
 import { DeleteChatModal } from '../ui/DeleteChatModal'
 import { loadChatSessions, deleteChatSession, updateSessionTitle, type ChatSession } from '../../lib/chatHistory'
 import { ChatActionMenu } from '../chat/ChatActionMenu'
+import { ChatHistorySearch } from '../search/ChatHistorySearch'
 import {
     Settings,
     LogOut,
@@ -16,14 +17,14 @@ import {
     Check,
     X,
     HelpCircle,
-    Search,
     User,
     LayoutDashboard,
     FileText,
     BarChart3,
     PanelLeftClose,
     PanelLeftOpen,
-    Users
+    Users,
+    Bookmark
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -65,7 +66,6 @@ export function Sidebar({
     const [sessionToDelete, setSessionToDelete] = useState<ChatSession | null>(null)
     const [sessions, setSessions] = useState<ChatSession[]>([])
     const [loading, setLoading] = useState(false)
-    const [searchQuery, setSearchQuery] = useState('')
     const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
     const [editTitle, setEditTitle] = useState('')
 
@@ -168,10 +168,6 @@ export function Sidebar({
         if (days < 7) return `${days} days ago`
         return d.toLocaleDateString()
     }
-
-    const filteredSessions = sessions.filter(session =>
-        session.title.toLowerCase().includes(searchQuery.toLowerCase())
-    )
 
     return (
         <motion.aside
@@ -290,8 +286,8 @@ export function Sidebar({
                 </nav>
             )}
 
-            {/* Search - Only when expanded and for students */}
-            {variant === 'student' && (
+            {/* Chat History Search - Only when expanded and for students */}
+            {variant === 'student' && user?.uid && (
                 <AnimatePresence mode="wait">
                     {isExpanded && (
                         <motion.div
@@ -301,16 +297,12 @@ export function Sidebar({
                             transition={{ duration: 0.2 }}
                             className="px-3 pb-2"
                         >
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-                                <input
-                                    type="text"
-                                    placeholder="Search chats"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full pl-9 pr-3 py-2 bg-sidebar-hover border border-border rounded-lg text-sm text-text placeholder:text-text-muted focus:outline-hidden focus:ring-2 focus:ring-primary/50 transition-all"
-                                />
-                            </div>
+                            <ChatHistorySearch
+                                userId={user.uid}
+                                onResultClick={(sessionId) => {
+                                    navigate(`/student?session=${sessionId}`)
+                                }}
+                            />
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -328,14 +320,14 @@ export function Sidebar({
                             >
                                 Loading...
                             </motion.div>
-                        ) : filteredSessions.length === 0 ? (
+                        ) : sessions.length === 0 ? (
                             <motion.div
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 className="text-center py-8 text-text-muted text-sm"
                             >
                                 <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                                <p>{searchQuery ? 'No chats found' : 'No chat history yet'}</p>
+                                <p>No chat history yet</p>
                             </motion.div>
                         ) : (
                             <motion.div
@@ -344,7 +336,7 @@ export function Sidebar({
                                 transition={{ duration: 0.2 }}
                                 className="space-y-0.5"
                             >
-                                {filteredSessions.map((session) => (
+                                {sessions.map((session) => (
                                     <motion.div
                                         key={session.id}
                                         initial={{ opacity: 0, x: -10 }}
@@ -480,6 +472,36 @@ export function Sidebar({
                                         className="whitespace-nowrap overflow-hidden"
                                     >
                                         FAQs
+                                    </motion.span>
+                                )}
+                            </AnimatePresence>
+                        </Link>
+                    )}
+
+                    {/* Bookmarks - Only for students */}
+                    {variant === 'student' && (
+                        <Link
+                            to="/student/bookmarks"
+                            className={clsx(
+                                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-normal transition-all duration-200',
+                                isExpanded ? 'justify-start' : 'justify-center',
+                                location.pathname.includes('/bookmarks')
+                                    ? 'bg-sidebar-active text-text'
+                                    : 'text-text-muted hover:bg-sidebar-hover hover:text-text'
+                            )}
+                            title={!isExpanded ? 'Bookmarks' : undefined}
+                        >
+                            <Bookmark className="w-5 h-5 flex-shrink-0" />
+                            <AnimatePresence mode="wait">
+                                {isExpanded && (
+                                    <motion.span
+                                        initial={{ opacity: 0, width: 0 }}
+                                        animate={{ opacity: 1, width: 'auto' }}
+                                        exit={{ opacity: 0, width: 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="whitespace-nowrap overflow-hidden"
+                                    >
+                                        Bookmarks
                                     </motion.span>
                                 )}
                             </AnimatePresence>

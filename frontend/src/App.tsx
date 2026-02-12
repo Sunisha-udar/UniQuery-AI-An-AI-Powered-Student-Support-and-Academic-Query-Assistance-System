@@ -14,6 +14,7 @@ import { AdminUsers } from './pages/admin/AdminUsers'
 import { AdminFAQs } from './pages/admin/AdminFAQs'
 import { SettingsPage } from './pages/student/SettingsPage'
 import { FAQPage } from './pages/student/FAQPage'
+import { BookmarksPage } from './pages/student/BookmarksPage'
 import { DashboardLayoutWrapper } from './components/layout/DashboardLayoutWrapper'
 import './index.css'
 
@@ -36,6 +37,7 @@ function App() {
               <Route path="/student" element={<StudentDashboard />} />
               <Route path="/student/settings" element={<SettingsPage />} />
               <Route path="/student/faqs" element={<FAQPage />} />
+              <Route path="/student/bookmarks" element={<BookmarksPage />} />
             </Route>
 
             {/* Admin Routes */}

@@ -9,12 +9,15 @@ import {
     ThumbsUp,
     ThumbsDown,
     Copy,
-    Check
+    Check,
+    Bookmark,
+    BookmarkCheck
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import { SuspendedAccountModal } from '../../components/modals/SuspendedAccountModal'
+import { addBookmark, removeBookmark, getBookmarkByMessageId } from '../../lib/bookmarks'
 
 interface Message {
     id: string
@@ -23,6 +26,8 @@ interface Message {
     citations?: Citation[]
     confidence?: number
     feedback?: 'up' | 'down'
+    isBookmarked?: boolean
+    bookmarkId?: string
 }
 
 const EXAMPLE_QUESTIONS = [
@@ -47,7 +52,7 @@ export function StudentDashboard() {
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
     const [filters, setFilters] = useState({ program: '', department: '', semester: '' })
     const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
-
+    const [bookmarkedMessages, setBookmarkedMessages] = useState<Set<string>>(new Set())
 
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -102,7 +107,21 @@ export function StudentDashboard() {
                     const loadedSessions = await loadChatSessions(user.uid)
                     const currentSession = loadedSessions.find(s => s.id === querySessionId)
                     if (currentSession) {
-                        setMessages(currentSession.messages || [])
+                        const msgs = currentSession.messages || []
+                        setMessages(msgs)
+                        // Check which messages are bookmarked
+                        if (user?.uid) {
+                            const bookmarked = new Set<string>()
+                            for (const msg of msgs) {
+                                if (msg.type === 'assistant') {
+                                    const bookmark = await getBookmarkByMessageId(user.uid, msg.id)
+                                    if (bookmark) {
+                                        bookmarked.add(msg.id)
+                                    }
+                                }
+                            }
+                            setBookmarkedMessages(bookmarked)
+                        }
                     } else {
                         // Session not found (maybe deleted), redirect to new chat
                         navigate('/student')
@@ -157,6 +176,41 @@ export function StudentDashboard() {
             setTimeout(() => setCopiedMessageId(null), 2000)
         } catch (err) {
             console.error('Failed to copy message:', err)
+        }
+    }
+
+    const handleBookmark = async (message: Message) => {
+        if (!user?.uid || !currentSessionId) return
+
+        const userMessage = messages.find(m => m.type === 'user' && messages.indexOf(m) === messages.indexOf(message) - 1)
+        const question = userMessage?.text || 'Question'
+
+        try {
+            if (bookmarkedMessages.has(message.id)) {
+                // Remove bookmark
+                const bookmark = await getBookmarkByMessageId(user.uid, message.id)
+                if (bookmark) {
+                    await removeBookmark(bookmark.id)
+                    setBookmarkedMessages(prev => {
+                        const next = new Set(prev)
+                        next.delete(message.id)
+                        return next
+                    })
+                }
+            } else {
+                // Add bookmark
+                await addBookmark(
+                    user.uid,
+                    currentSessionId,
+                    message.id,
+                    question,
+                    message.text,
+                    message.citations
+                )
+                setBookmarkedMessages(prev => new Set(prev).add(message.id))
+            }
+        } catch (err) {
+            console.error('Failed to toggle bookmark:', err)
         }
     }
 
@@ -342,6 +396,21 @@ export function StudentDashboard() {
                                                     </>
                                                 ) : (
                                                     <Copy className="w-4 h-4" />
+                                                )}
+                                            </button>
+                                            <div className="w-px h-4 bg-border/50 mx-1" />
+                                            <button
+                                                onClick={() => handleBookmark(msg)}
+                                                className={`p-1.5 rounded-lg transition-colors ${bookmarkedMessages.has(msg.id)
+                                                    ? 'bg-yellow-500/10 text-yellow-500'
+                                                    : 'hover:bg-secondary/50 text-text-muted hover:text-text'
+                                                    }`}
+                                                title={bookmarkedMessages.has(msg.id) ? 'Remove bookmark' : 'Bookmark'}
+                                            >
+                                                {bookmarkedMessages.has(msg.id) ? (
+                                                    <BookmarkCheck className="w-4 h-4" />
+                                                ) : (
+                                                    <Bookmark className="w-4 h-4" />
                                                 )}
                                             </button>
                                             <div className="w-px h-4 bg-border/50 mx-1" />

@@ -8,11 +8,11 @@ import { Input } from '../../components/ui/Input'
 import { DeleteDocumentModal } from '../../components/ui/DeleteDocumentModal'
 import { RenameDocumentModal } from '../../components/ui/RenameDocumentModal'
 import { DocumentPreviewModal } from '../../components/modals/DocumentPreviewModal'
+import { AdvancedSearchFilters, type SearchFilters } from '../../components/search/AdvancedSearchFilters'
 import { api, type Document } from '../../lib/api'
 import {
     FileText,
     Upload,
-    Search,
     Trash2,
     X,
     CheckCircle,
@@ -23,7 +23,17 @@ import {
 import { clsx } from 'clsx'
 
 export function AdminDocuments() {
-    const [searchQuery, setSearchQuery] = useState('')
+    const [searchFilters, setSearchFilters] = useState<SearchFilters>({
+        searchQuery: '',
+        category: undefined,
+        program: undefined,
+        department: undefined,
+        semester: undefined,
+        dateFrom: undefined,
+        dateTo: undefined,
+        fileType: undefined,
+        keywords: []
+    })
     const [showUploadModal, setShowUploadModal] = useState(false)
     const [uploadSuccess, setUploadSuccess] = useState(false)
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
@@ -46,9 +56,15 @@ export function AdminDocuments() {
     const location = useLocation()
     const [fixItQuestion, setFixItQuestion] = useState<string | null>(null)
 
+    // Available filter options
+    const [availableCategories, setAvailableCategories] = useState<string[]>([])
+    const [availablePrograms, setAvailablePrograms] = useState<string[]>([])
+    const [availableDepartments, setAvailableDepartments] = useState<string[]>([])
+
     // Load documents on mount only
     useEffect(() => {
         loadDocuments()
+        loadFilterOptions()
     }, [])
 
     // Handle URL-driven UI state changes
@@ -93,10 +109,93 @@ export function AdminDocuments() {
         }
     }
 
+    const loadFilterOptions = () => {
+        // Extract unique values from documents for filter dropdowns
+        const categories = [...new Set(documents.map(d => d.category).filter(Boolean))] as string[]
+        const programs = [...new Set(documents.map(d => d.program).filter(Boolean))] as string[]
+        const departments = [...new Set(documents.map(d => d.department).filter(Boolean))] as string[]
+        
+        setAvailableCategories(categories)
+        setAvailablePrograms(programs)
+        setAvailableDepartments(departments)
+    }
+
+    useEffect(() => {
+        loadFilterOptions()
+    }, [documents])
+
     const filteredDocs = documents.filter(doc => {
-        const matchesSearch = doc.title.toLowerCase().includes(searchQuery.toLowerCase())
-        return matchesSearch
+        // Search query filter
+        if (searchFilters.searchQuery) {
+            const matchesSearch = doc.title.toLowerCase().includes(searchFilters.searchQuery.toLowerCase())
+            if (!matchesSearch) return false
+        }
+
+        // Category filter
+        if (searchFilters.category && doc.category !== searchFilters.category) {
+            return false
+        }
+
+        // Program filter
+        if (searchFilters.program && doc.program !== searchFilters.program) {
+            return false
+        }
+
+        // Department filter
+        if (searchFilters.department && doc.department !== searchFilters.department) {
+            return false
+        }
+
+        // Semester filter
+        if (searchFilters.semester && doc.semester !== searchFilters.semester) {
+            return false
+        }
+
+        // Date range filter
+        if (searchFilters.dateFrom && doc.uploaded_at) {
+            const docDate = new Date(doc.uploaded_at)
+            const fromDate = new Date(searchFilters.dateFrom)
+            if (docDate < fromDate) return false
+        }
+
+        if (searchFilters.dateTo && doc.uploaded_at) {
+            const docDate = new Date(doc.uploaded_at)
+            const toDate = new Date(searchFilters.dateTo)
+            toDate.setHours(23, 59, 59, 999) // End of day
+            if (docDate > toDate) return false
+        }
+
+        // Keywords filter (search in title)
+        if (searchFilters.keywords && searchFilters.keywords.length > 0) {
+            const titleLower = doc.title.toLowerCase()
+            const hasAllKeywords = searchFilters.keywords.every(keyword =>
+                titleLower.includes(keyword.toLowerCase())
+            )
+            if (!hasAllKeywords) return false
+        }
+
+        return true
     })
+
+    const handleSearch = () => {
+        // Search is reactive, so this just triggers a re-render
+        setCurrentPage(1)
+    }
+
+    const handleClearFilters = () => {
+        setSearchFilters({
+            searchQuery: '',
+            category: undefined,
+            program: undefined,
+            department: undefined,
+            semester: undefined,
+            dateFrom: undefined,
+            dateTo: undefined,
+            fileType: undefined,
+            keywords: []
+        })
+        setCurrentPage(1)
+    }
 
     const totalPages = Math.ceil(filteredDocs.length / ITEMS_PER_PAGE)
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
@@ -105,7 +204,7 @@ export function AdminDocuments() {
     // Reset to page 1 when search changes
     useEffect(() => {
         setCurrentPage(1)
-    }, [searchQuery])
+    }, [searchFilters])
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -231,25 +330,17 @@ export function AdminDocuments() {
                     </Button>
                 </div>
 
-                {/* Filters */}
-                <Card>
-                    <CardContent className="py-4">
-                        <div className="flex flex-wrap items-center gap-4">
-                            <div className="flex-1 min-w-[200px]">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search documents..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full h-10 pl-10 pr-4 rounded-lg border border-border bg-surface text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                {/* Advanced Search Filters */}
+                <AdvancedSearchFilters
+                    filters={searchFilters}
+                    onFiltersChange={setSearchFilters}
+                    onSearch={handleSearch}
+                    onClear={handleClearFilters}
+                    availableCategories={availableCategories}
+                    availablePrograms={availablePrograms}
+                    availableDepartments={availableDepartments}
+                    showAdvanced={true}
+                />
 
                 {/* Documents Table/Cards */}
                 <Card>
