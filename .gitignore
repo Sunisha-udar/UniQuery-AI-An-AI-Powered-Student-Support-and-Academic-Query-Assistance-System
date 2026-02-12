@@ -41,7 +41,6 @@ backend/venv
 
 # Project specific
 
-serviceAccountKey.json
 .vercel
 
 .agent
@@ -49,6 +48,8 @@ serviceAccountKey.json
 .qodo
 .vscode
 .kombai
+
+ANALYSIS_AND_RECOMMENDATIONS.md
 
 # PDF documents (should be in cloud storage)
 krmu/
