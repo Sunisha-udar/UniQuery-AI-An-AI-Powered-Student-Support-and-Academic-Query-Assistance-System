@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth, type UserRole } from '../../contexts/AuthContext'
 import { SuspendedAccountModal } from '../modals/SuspendedAccountModal'
 
@@ -8,9 +8,10 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-    const { user, loading } = useAuth()
+    const { user, loading, profileLoading } = useAuth()
+    const location = useLocation()
 
-    if (loading) {
+    if (loading || profileLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background">
                 <div className="flex flex-col items-center gap-4">
@@ -22,7 +23,9 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     }
 
     if (!user) {
-        return <Navigate to="/login" replace />
+        // Save the intended path to sessionStorage as a backup for the login page
+        sessionStorage.setItem('redirectAfterLogin', location.pathname)
+        return <Navigate to="/login" state={{ from: location }} replace />
     }
 
     // Show suspended modal for suspended users - blocks all access

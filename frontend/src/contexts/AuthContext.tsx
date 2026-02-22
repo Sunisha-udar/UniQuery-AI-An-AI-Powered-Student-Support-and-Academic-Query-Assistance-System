@@ -21,6 +21,7 @@ interface User {
 interface AuthContextType {
     user: User | null
     loading: boolean
+    profileLoading: boolean
     login: (email: string, password: string) => Promise<void>
     signup: (email: string, password: string, role: UserRole, profile?: Partial<User>) => Promise<void>
     updateUser: (data: Partial<User>) => Promise<void>
@@ -46,6 +47,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
     const [user, setUser] = useState<User | null>(null)
     const [loading, setLoading] = useState(true)
+    const [profileLoading, setProfileLoading] = useState(false)
     const userRef = useRef<User | null>(null)
 
     // Keep ref in sync with state to avoid stale closures in event listeners
@@ -111,6 +113,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
     }
 
+    const createSessionFallbackUser = (supabaseUser: SupabaseUser): User => {
+        const metadataRole = supabaseUser.app_metadata?.role || supabaseUser.user_metadata?.role
+        const role: UserRole = metadataRole === 'admin' ? 'admin' : 'student'
+
+        return {
+            uid: supabaseUser.id,
+            email: supabaseUser.email ?? null,
+            role,
+        }
+    }
+
     useEffect(() => {
         let mounted = true
 
@@ -122,28 +135,53 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
                 if (error) {
                     console.error('[Auth] Error getting session:', error)
-                    if (mounted) {
-                        setLoading(false)
-                    }
-                    return
                 }
 
                 if (session?.user && mounted) {
                     console.log('[Auth] Found existing session')
-                    const userProfile = await fetchUserProfile(session.user)
-                    if (mounted) {
-                        // Always set user - UI will handle showing suspended modal
-                        setUser(userProfile)
+                    // Prevent login-page flicker by setting a safe fallback user immediately.
+                    setUser(prev => prev && prev.uid === session.user.id ? prev : createSessionFallbackUser(session.user))
+                    setProfileLoading(true)
+                    try {
+                        const userProfile = await fetchUserProfile(session.user)
+                        if (mounted) {
+                            setUser(userProfile)
+                        }
+                    } catch (profileError) {
+                        console.warn('[Auth] Using session fallback user due to profile fetch failure:', profileError)
+                    } finally {
+                        if (mounted) {
+                            setProfileLoading(false)
+                            setLoading(false)
+                        }
                     }
-                } else {
-                    console.log('[Auth] No existing session')
+                } else if (mounted) {
+                    // Check if there's evidence of a session in localStorage even if getSession returned null
+                    // (This can happen during a slow token refresh/re-auth)
+                    const hasLocalSession = Object.keys(localStorage).some(key => key.includes('auth-token'))
+
+                    if (hasLocalSession) {
+                        console.log('[Auth] getSession was null but local session found. Waiting a short moment for possible background refresh...')
+                        // Wait a bit to see if onAuthStateChange picks up the refresh
+                        await new Promise(resolve => setTimeout(resolve, 800))
+
+                        // If we still don't have a user after the wait, resolve to logged out
+                        if (!userRef.current && mounted) {
+                            console.log('[Auth] Still no user after wait, assuming logged out')
+                            setLoading(false)
+                        }
+                    } else {
+                        console.log('[Auth] No existing session')
+                        setLoading(false)
+                    }
                 }
             } catch (error) {
                 console.error('[Auth] Error initializing auth:', error)
-            } finally {
                 if (mounted) {
                     setLoading(false)
                 }
+            } finally {
+                // outer finally is removed or handled inside try/else
             }
         }
 
@@ -158,28 +196,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
                 try {
                     if (event === 'SIGNED_IN' && session?.user) {
-                        const userProfile = await fetchUserProfile(session.user)
-                        if (mounted) {
-                            // Always set user - UI will handle showing suspended modal
-                            setUser(userProfile)
-                            setLoading(false)
-                        }
-                    } else if (event === 'SIGNED_OUT') {
-                        if (mounted) {
-                            setUser(null)
-                            setLoading(false)
-                        }
-                    } else if (event === 'INITIAL_SESSION') {
-                        if (session?.user && mounted) {
+                        setUser(prev => prev && prev.uid === session.user.id ? prev : createSessionFallbackUser(session.user))
+                        setProfileLoading(true)
+                        try {
                             const userProfile = await fetchUserProfile(session.user)
                             if (mounted) {
                                 // Always set user - UI will handle showing suspended modal
                                 setUser(userProfile)
                                 setLoading(false)
                             }
-                        } else if (mounted) {
+                        } catch (profileError) {
+                            console.warn('[Auth] SIGNED_IN fallback user retained:', profileError)
+                            if (mounted) {
+                                setLoading(false)
+                            }
+                        } finally {
+                            if (mounted) {
+                                setProfileLoading(false)
+                            }
+                        }
+                    } else if (event === 'SIGNED_OUT') {
+                        if (mounted) {
+                            setUser(null)
+                            setProfileLoading(false)
                             setLoading(false)
                         }
+                    } else if (event === 'INITIAL_SESSION') {
+                        // Ignore INITIAL_SESSION because we handle initial auth via supabase.auth.getSession().
+                        // getSession() correctly awaits token refreshes, whereas INITIAL_SESSION fires 
+                        // synchronously with null if the token is currently refreshing, which prematurely 
+                        // sets loading=false and causes the login page to flash.
+                        console.log('[Auth] Ignoring INITIAL_SESSION to prevent premature loading state resolution')
                     }
                 } catch (error) {
                     console.error('[Auth] Error handling auth state change:', error);
@@ -188,7 +235,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     // DO NOT logout or downgrade. Keep existing state.
                     if (session?.user && userRef.current && userRef.current.uid === session.user.id) {
                         console.warn('[Auth] Keeping existing user state despite fetch error');
-                        if (mounted) setLoading(false);
+                        if (mounted) {
+                            setProfileLoading(false);
+                            setLoading(false);
+                        }
                         return;
                     }
 
@@ -196,7 +246,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     // For now, if it's a new login that failed, we might want to let them stay on the "loading" screen or retry.
                     // But to avoid getting stuck, we might have to settle for current state or null.
 
-                    if (mounted) setLoading(false);
+                    if (mounted) {
+                        setProfileLoading(false);
+                        setLoading(false);
+                    }
                 }
             }
         )
@@ -332,7 +385,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
             if (error) {
                 console.error('[Auth] Error deleting user from auth:', error)
-                
+
                 // Fallback: Try deleting from profiles table directly
                 const { error: dbError } = await supabase
                     .from('profiles')
@@ -361,7 +414,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, signup, updateUser, logout, deleteAccount }}>
+        <AuthContext.Provider value={{ user, loading, profileLoading, login, signup, updateUser, logout, deleteAccount }}>
             {children}
         </AuthContext.Provider>
     )
