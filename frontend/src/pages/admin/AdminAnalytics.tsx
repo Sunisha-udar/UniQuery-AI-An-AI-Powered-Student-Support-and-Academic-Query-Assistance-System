@@ -20,6 +20,11 @@ interface AnalyticsData {
     volumeByDay: { date: string; queries: number }[]
     confidenceDistribution: { name: string; value: number }[]
     topLowConfidenceQuestions: { question: string; confidence: number }[]
+    feedbackStats: {
+        helpfulPercent: number
+        notHelpfulPercent: number
+        hasData: boolean
+    }
 }
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'] // Premium Blue, Emerald, Amber, Rose
@@ -33,7 +38,8 @@ export function AdminAnalytics() {
         totalDocuments: 0,
         volumeByDay: [],
         confidenceDistribution: [],
-        topLowConfidenceQuestions: []
+        topLowConfidenceQuestions: [],
+        feedbackStats: { helpfulPercent: 0, notHelpfulPercent: 0, hasData: false }
     })
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -116,6 +122,18 @@ export function AdminAnalytics() {
                 }))
                 .slice(0, 5) // Top 5
 
+            // Feedback Stats
+            const feedbackQueries = queries.filter(q => q.feedback !== undefined && q.feedback !== null)
+            const upvotes = feedbackQueries.filter(q => q.feedback === 'up').length
+            const downvotes = feedbackQueries.filter(q => q.feedback === 'down').length
+            const totalFeedback = upvotes + downvotes
+
+            const feedbackStats = {
+                helpfulPercent: totalFeedback > 0 ? Math.round((upvotes / totalFeedback) * 100) : 0,
+                notHelpfulPercent: totalFeedback > 0 ? Math.round((downvotes / totalFeedback) * 100) : 0,
+                hasData: totalFeedback > 0
+            }
+
             setAnalytics({
                 totalQueries,
                 avgConfidence,
@@ -123,7 +141,8 @@ export function AdminAnalytics() {
                 totalDocuments: documentCount,
                 volumeByDay,
                 confidenceDistribution,
-                topLowConfidenceQuestions: lowConfQuestions
+                topLowConfidenceQuestions: lowConfQuestions,
+                feedbackStats
             })
 
             setError(null)
@@ -265,6 +284,52 @@ export function AdminAnalytics() {
                                     ) : (
                                         <div className="h-[250px] flex items-center justify-center text-text-muted">
                                             No data available
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            {/* User Feedback Card */}
+                            <Card>
+                                <CardContent className="p-6">
+                                    <h3 className="text-lg font-semibold text-text mb-4">User Feedback</h3>
+                                    {!analytics.feedbackStats.hasData ? (
+                                        <div className="h-[250px] flex items-center justify-center text-text-muted">
+                                            No feedback data available yet
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col h-[250px] justify-between">
+                                            <div className="flex-1 flex items-center justify-center pt-8 pb-4">
+                                                <div className="w-full flex items-center justify-between border-b border-border/50 pb-8">
+                                                    {/* Helpful side */}
+                                                    <div className="flex-1 flex items-center justify-center gap-3 border-r border-border/50">
+                                                        <div className="text-green-500 flex items-center gap-2">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8">
+                                                                <path d="M7.493 18.525a3.951 3.951 0 0 1-3.418-2.022 3.947 3.947 0 0 1-.223-3.61l1.528-3.328A3.957 3.957 0 0 1 8.955 7.5h1.53c1.077 0 2.052-.403 2.768-1.07l.211-.198a6 6 0 0 0 1.956-4.522 10.662 10.662 0 0 1 .867-.674 1.5 1.5 0 0 1 2.37.95l.409 3.064c.264 1.973 1.258 3.737 2.784 4.96A9.957 9.957 0 0 1 24 17.5a2.5 2.5 0 0 1-2.5 2.5h-9.5c-1.396 0-2.618-.4-3.791-.796-1.127-.38-2.222-.75-3.535-.75h-3.181a1.493 1.493 0 0 1-1.353-.8z" />
+                                                                <path d="M1.5 8C1.224 8 1 8.224 1 8.5v12c0 .276.224.5.5.5h4V8h-4z" />
+                                                            </svg>
+                                                        </div>
+                                                        <span className="text-base font-medium text-text">Helpful: <span className="text-green-500 font-bold">{analytics.feedbackStats.helpfulPercent}%</span></span>
+                                                    </div>
+
+                                                    {/* Not Helpful side */}
+                                                    <div className="flex-1 flex items-center justify-center gap-3">
+                                                        <div className="text-red-400 flex items-center gap-2">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8">
+                                                                <path d="M16.507 5.475a3.951 3.951 0 0 1 3.418 2.022 3.947 3.947 0 0 1 .223 3.61l-1.528 3.328A3.957 3.957 0 0 1 15.045 16.5h-1.53c-1.077 0-2.052.403-2.768 1.07l-.211.198a6 6 0 0 0-1.956 4.522 10.662 10.662 0 0 1-.867.674 1.5 1.5 0 0 1-2.37-.95l-.409-3.064c-.264-1.973-1.258-3.737-2.784-4.96A9.957 9.957 0 0 1 0 6.5 2.5 2.5 0 0 1 2.5 4h9.5c1.396 0 2.618.4 3.791.796 1.127.38 2.222.75 3.535.75h3.181a1.493 1.493 0 0 1 1.353.8z" />
+                                                                <path d="M22.5 16c.276 0 .5-.224.5-.5v-12a.5.5 0 0 0-.5-.5h-4v13h4z" />
+                                                            </svg>
+                                                        </div>
+                                                        <span className="text-base font-medium text-text">Not Helpful: <span className="font-bold">{analytics.feedbackStats.notHelpfulPercent}%</span></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => navigate('/admin/queries')}
+                                                className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+                                            >
+                                                View Feedback
+                                            </button>
                                         </div>
                                     )}
                                 </CardContent>

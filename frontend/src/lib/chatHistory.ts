@@ -389,6 +389,7 @@ export interface UserQuery {
     confidence: number
     citations: any
     created_at: string
+    feedback?: 'up' | 'down'
 }
 
 /**

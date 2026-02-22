@@ -15,6 +15,7 @@ interface QueryWithDetails {
     question: string
     timestamp: Date
     confidence?: number
+    feedback?: 'up' | 'down'
 }
 
 export function AdminQueries() {
@@ -46,7 +47,8 @@ export function AdminQueries() {
                 userId: q.user_id,
                 question: q.question,
                 timestamp: new Date(q.created_at),
-                confidence: q.confidence
+                confidence: q.confidence,
+                feedback: q.feedback
             }))
 
             console.log('[AdminQueries] Extracted queries:', allQueries.length)
@@ -64,10 +66,19 @@ export function AdminQueries() {
         }
     }
 
-    const filteredQueries = queries.filter(q =>
-        q.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        q.userId.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+    const filteredQueries = queries.filter(q => {
+        const matchesSearch = q.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            q.userId.toLowerCase().includes(searchQuery.toLowerCase())
+
+        if (searchQuery.toLowerCase() === 'helpful') {
+            return q.feedback === 'up'
+        }
+        if (searchQuery.toLowerCase() === 'not helpful') {
+            return q.feedback === 'down'
+        }
+
+        return matchesSearch
+    })
 
     const totalPages = Math.ceil(filteredQueries.length / ITEMS_PER_PAGE)
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
@@ -110,6 +121,32 @@ export function AdminQueries() {
                 </div>
             )
         }
+    }
+
+    const getFeedbackBadge = (feedback?: 'up' | 'down') => {
+        if (!feedback) return null;
+
+        if (feedback === 'up') {
+            return (
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-green-500/10 text-green-600 dark:text-green-400 text-[10px] font-semibold uppercase tracking-wider border border-green-500/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+                        <path d="M7.493 18.525a3.951 3.951 0 0 1-3.418-2.022 3.947 3.947 0 0 1-.223-3.61l1.528-3.328A3.957 3.957 0 0 1 8.955 7.5h1.53c1.077 0 2.052-.403 2.768-1.07l.211-.198a6 6 0 0 0 1.956-4.522 10.662 10.662 0 0 1 .867-.674 1.5 1.5 0 0 1 2.37.95l.409 3.064c.264 1.973 1.258 3.737 2.784 4.96A9.957 9.957 0 0 1 24 17.5a2.5 2.5 0 0 1-2.5 2.5h-9.5c-1.396 0-2.618-.4-3.791-.796-1.127-.38-2.222-.75-3.535-.75h-3.181a1.493 1.493 0 0 1-1.353-.8z" />
+                        <path d="M1.5 8C1.224 8 1 8.224 1 8.5v12c0 .276.224.5.5.5h4V8h-4z" />
+                    </svg>
+                    Helpful
+                </div>
+            )
+        }
+
+        return (
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 text-[10px] font-semibold uppercase tracking-wider border border-red-500/20">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+                    <path d="M16.507 5.475a3.951 3.951 0 0 1 3.418 2.022 3.947 3.947 0 0 1 .223 3.61l-1.528 3.328A3.957 3.957 0 0 1 15.045 16.5h-1.53c-1.077 0-2.052.403-2.768 1.07l-.211.198a6 6 0 0 0-1.956 4.522 10.662 10.662 0 0 1-.867.674 1.5 1.5 0 0 1-2.37-.95l-.409-3.064c-.264-1.973-1.258-3.737-2.784-4.96A9.957 9.957 0 0 1 0 6.5 2.5 2.5 0 0 1 2.5 4h9.5c1.396 0 2.618.4 3.791.796 1.127.38 2.222.75 3.535.75h3.181a1.493 1.493 0 0 1 1.353.8z" />
+                    <path d="M22.5 16c.276 0 .5-.224.5-.5v-12a.5.5 0 0 0-.5-.5h-4v13h4z" />
+                </svg>
+                Not Helpful
+            </div>
+        )
     }
 
     const formatTimestamp = (date: Date) => {
@@ -279,9 +316,16 @@ export function AdminQueries() {
                                                         </div>
                                                     </td>
                                                     <td className="px-2 py-3">
-                                                        <p className="text-sm text-text line-clamp-2 max-w-md">
-                                                            {query.question}
-                                                        </p>
+                                                        <div className="flex flex-col gap-1.5">
+                                                            <p className="text-sm text-text line-clamp-2 max-w-md">
+                                                                {query.question}
+                                                            </p>
+                                                            {query.feedback && (
+                                                                <div className="flex items-center">
+                                                                    {getFeedbackBadge(query.feedback)}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </td>
                                                     <td className="px-2 py-3">
                                                         {getConfidenceBadge(query.confidence)}
@@ -350,7 +394,10 @@ export function AdminQueries() {
 
                                             {/* Question */}
                                             <div className="mb-3">
-                                                <p className="text-xs text-text-muted mb-1">Question</p>
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <p className="text-xs text-text-muted">Question</p>
+                                                    {query.feedback && getFeedbackBadge(query.feedback)}
+                                                </div>
                                                 <p className="text-sm text-text leading-relaxed">
                                                     {query.question}
                                                 </p>

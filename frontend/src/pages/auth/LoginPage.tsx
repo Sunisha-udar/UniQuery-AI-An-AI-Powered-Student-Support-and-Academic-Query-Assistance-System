@@ -1,5 +1,5 @@
-import { useState, type FormEvent, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, type FormEvent } from 'react'
+import { Link, useLocation, Navigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
@@ -12,14 +12,7 @@ export function LoginPage() {
     const [error, setError] = useState('')
     const [submitting, setSubmitting] = useState(false)
     const { login, user, loading: authLoading } = useAuth()
-    const navigate = useNavigate()
-
-    // Redirect if already logged in
-    useEffect(() => {
-        if (!authLoading && user) {
-            navigate(user.role === 'admin' ? '/admin' : '/student', { replace: true })
-        }
-    }, [user, authLoading, navigate])
+    const location = useLocation()
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
@@ -31,7 +24,7 @@ export function LoginPage() {
             sessionStorage.clear()
 
             await login(email, password)
-            // Navigation happens via useEffect when user state updates
+            // Navigation happens via render block when user state updates
         } catch (err) {
             setError('Invalid email or password. Please try again.')
             setSubmitting(false)
@@ -48,6 +41,19 @@ export function LoginPage() {
                 </div>
             </div>
         )
+    }
+
+    if (user) {
+        // Use location state first, then fallback to sessionStorage
+        const savedRedirect = sessionStorage.getItem('redirectAfterLogin')
+        const redirectPath = location.state?.from?.pathname || savedRedirect || (user.role === 'admin' ? '/admin' : '/student')
+
+        // Clear the saved redirect so it doesn't persist to subsequent logins
+        if (savedRedirect) {
+            sessionStorage.removeItem('redirectAfterLogin')
+        }
+
+        return <Navigate to={redirectPath} replace />
     }
 
     return (
