@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { api, type Citation } from '../../lib/api'
 import { createChatSession, addMessageToSession, loadChatSessions, updateSessionTitle, saveUserQuery, rateMessage } from '../../lib/chatHistory'
+import { supabase } from '../../lib/supabase'
 import { PlaceholdersAndVanishInput } from '../../components/ui/placeholders-and-vanish-input'
 import {
     AlertCircle,
@@ -48,6 +49,7 @@ export function StudentDashboard() {
     const [streamingMessage, setStreamingMessage] = useState<Message | null>(null)
     const [displayedText, setDisplayedText] = useState('')
     const [error, setError] = useState<string | null>(null)
+    const [warningNotice, setWarningNotice] = useState<string | null>(null)
     const [isLoadingHistory, setIsLoadingHistory] = useState(true)
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
     const [filters, setFilters] = useState({ program: '', department: '', semester: '' })
@@ -247,18 +249,29 @@ export function StudentDashboard() {
         setMessages(prev => [...prev, userMsg])
         setIsTyping(true)
         setError(null)
+        setWarningNotice(null)
         const currentQuery = query
         setQuery('')
 
         try {
             await addMessageToSession(sessionId, 'user', userMsg.text, undefined, undefined, userMsg.id)
 
+            const { data } = await supabase.auth.getSession()
+            const accessToken = data.session?.access_token
+
             const result = await api.queryDocuments({
                 question: currentQuery,
                 program: filters.program || undefined,
                 department: filters.department || undefined,
                 semester: filters.semester ? Number(filters.semester) : undefined
-            })
+            }, accessToken)
+
+            if (result.moderation?.flagged) {
+                const warningText = result.moderation.is_suspended
+                    ? 'Your account has been suspended automatically after repeated informal messages.'
+                    : `Warning ${result.moderation.warning_count}/3 issued. Only proper academic questions are allowed.`
+                setWarningNotice(warningText)
+            }
 
             const assistantMsg: Message = {
                 id: (Date.now() + 1).toString(),
@@ -475,6 +488,15 @@ export function StudentDashboard() {
                                 <div className="flex items-center gap-2 text-error bg-error/10 border border-error/20 rounded-lg px-4 py-2">
                                     <AlertCircle className="w-4 h-4" />
                                     <span className="text-sm">{error}</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {warningNotice && (
+                            <div className="flex justify-center my-4">
+                                <div className="flex items-center gap-2 text-amber-700 bg-amber-100 border border-amber-200 rounded-lg px-4 py-2 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20">
+                                    <AlertCircle className="w-4 h-4" />
+                                    <span className="text-sm">{warningNotice}</span>
                                 </div>
                             </div>
                         )}

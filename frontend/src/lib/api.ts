@@ -88,6 +88,17 @@ interface QueryResponse {
   answer: string;
   citations: Citation[];
   confidence: number;
+  moderation?: {
+    flagged: boolean;
+    warning_count: number;
+    remaining_warnings: number;
+    is_suspended: boolean;
+    suspension_count: number;
+    reason_code: string;
+    reason_detail: string;
+    detector: string;
+    confidence: number;
+  } | null;
 }
 
 interface Document {
@@ -182,7 +193,7 @@ class ApiClient {
   /**
    * Query documents using RAG pipeline
    */
-  async queryDocuments(params: QueryParams): Promise<QueryResponse> {
+  async queryDocuments(params: QueryParams, token?: string): Promise<QueryResponse> {
     console.log('[API] Querying documents with:', params);
 
     // Add timeout for slow backend
@@ -195,6 +206,7 @@ class ApiClient {
         signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           question: params.question,
