@@ -57,21 +57,18 @@ export async function getAllUsers(): Promise<FullUserProfile[]> {
  */
 export async function suspendUser(userId: string, suspend: boolean): Promise<void> {
     if (suspend) {
-        // Manual suspension by admin
-        const { error } = await supabase
-            .from('profiles')
-            .update({
-                suspended: true,
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', userId)
+        // Manual suspension by admin - use RPC to increment suspension count
+        const { error } = await supabase.rpc('manual_suspend_user', {
+            p_user_id: userId,
+            p_reason: 'Admin manually suspended account'
+        })
 
         if (error) {
             console.error('Error suspending user:', error)
             throw new Error(`Failed to suspend user: ${error.message}`)
         }
 
-        console.log(`User ${userId} suspended. They will be blocked on next request.`)
+        console.log(`User ${userId} suspended with suspension count incremented`)
     } else {
         // Reactivation - use RPC function to reset warnings but preserve suspension count
         const { error } = await supabase.rpc('reactivate_user_account', {
