@@ -269,7 +269,7 @@ export function StudentDashboard() {
             if (result.moderation?.flagged) {
                 const warningText = result.moderation.is_suspended
                     ? 'Your account has been suspended automatically after repeated informal messages.'
-                    : `Warning ${result.moderation.warning_count}/3 issued. Only proper academic questions are allowed.`
+                    : `Warning ${result.moderation.warning_count}/5 issued. Only proper academic questions are allowed.`
                 setWarningNotice(warningText)
             }
 
@@ -494,9 +494,9 @@ export function StudentDashboard() {
 
                         {warningNotice && (
                             <div className="flex justify-center my-4">
-                                <div className="flex items-center gap-2 text-amber-700 bg-amber-100 border border-amber-200 rounded-lg px-4 py-2 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20">
-                                    <AlertCircle className="w-4 h-4" />
-                                    <span className="text-sm">{warningNotice}</span>
+                                <div className="flex items-center gap-2 rounded-xl border border-red-400 bg-red-100 px-5 py-3 text-red-800 shadow-[0_10px_30px_-16px_rgba(220,38,38,0.55)] dark:border-red-500/40 dark:bg-red-500/18 dark:text-red-200">
+                                    <AlertCircle className="h-4 w-4 flex-shrink-0 text-red-600 dark:text-red-300" />
+                                    <span className="text-sm font-medium tracking-[0.01em]">{warningNotice}</span>
                                 </div>
                             </div>
                         )}

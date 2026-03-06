@@ -215,7 +215,7 @@ BEGIN
 
     v_is_suspended := FALSE;
 
-    IF v_warning_count >= 3 THEN
+    IF v_warning_count >= 5 THEN
         UPDATE profiles
         SET suspended = TRUE,
             updated_at = NOW()
@@ -248,8 +248,8 @@ BEGIN
             p_question,
             p_normalized_text,
             p_detector,
-            'three_warning_limit',
-            'Automatic suspension after 3 confirmed informal messages',
+            'five_warning_limit',
+            'Automatic suspension after 5 confirmed informal messages',
             p_confidence,
             v_warning_count,
             v_suspension_count,
@@ -262,7 +262,7 @@ BEGIN
     RETURN QUERY
     SELECT
         v_warning_count AS warning_count,
-        GREATEST(0, 3 - v_warning_count) AS remaining_warnings,
+        GREATEST(0, 5 - v_warning_count) AS remaining_warnings,
         v_is_suspended AS is_suspended,
         v_suspension_count AS suspension_count;
 END;

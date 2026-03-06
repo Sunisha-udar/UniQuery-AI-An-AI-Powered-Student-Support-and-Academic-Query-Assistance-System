@@ -63,7 +63,7 @@ def process_query(request: QueryRequest, authorization: str = Header(None)):
             moderation_result = {
                 **(moderation_service.apply_warning(user_id, assessment, request.question) if user_id else {
                     "warning_count": 0,
-                    "remaining_warnings": 3,
+                    "remaining_warnings": 5,
                     "is_suspended": False,
                     "suspension_count": 0,
                 }),

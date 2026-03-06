@@ -16,6 +16,8 @@ from app.services.supabase_client import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
+MAX_WARNINGS = 5
+
 ACADEMIC_KEYWORDS = {
     "attendance", "exam", "exams", "fee", "fees", "scholarship", "hostel", "library",
     "syllabus", "semester", "department", "program", "course", "courses", "admission",
@@ -151,14 +153,14 @@ class ModerationService:
         if is_suspended:
             return (
                 "This system only accepts proper academic queries. "
-                f"You have reached warning {warning_count} of 3, and your account has been suspended automatically. "
+                f"You have reached warning {warning_count} of {MAX_WARNINGS}, and your account has been suspended automatically. "
                 "Please contact support or an administrator to request reactivation."
             )
 
         return (
             "This system is only for proper academic questions. "
             "Do not send informal greetings or casual chat messages here. "
-            f"This is warning {warning_count} of 3. "
+            f"This is warning {warning_count} of {MAX_WARNINGS}. "
             f"{remaining_warnings} warning(s) remain before automatic suspension."
         )
 
