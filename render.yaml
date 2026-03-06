@@ -1,7 +1,7 @@
 services:
   - type: web
     name: uniquery-backend
-    env: python
+    runtime: python
     region: singapore
     plan: free
     buildCommand: "cd backend && pip install -r requirements.txt"
@@ -16,10 +16,8 @@ services:
         sync: false
       - key: QDRANT_COLLECTION_NAME
         value: uniquery
-      - key: VOYAGE_API_KEY
-        sync: false
       - key: EMBEDDING_DIMENSION
-        value: "512"
+        value: "384"
       - key: GROQ_API_KEY
         sync: false
       - key: GROQ_MODEL
