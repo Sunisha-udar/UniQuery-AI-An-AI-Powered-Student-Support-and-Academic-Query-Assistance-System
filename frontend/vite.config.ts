@@ -10,11 +10,10 @@ export default defineConfig({
     react() as any,
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       devOptions: {
-        enabled: true,
-        type: 'module'
+        enabled: false,
       },
       workbox: {
         cleanupOutdatedCaches: true,
