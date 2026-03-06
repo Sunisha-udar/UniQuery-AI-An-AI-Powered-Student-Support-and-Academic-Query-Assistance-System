@@ -1,13 +1,25 @@
-import { useState, type FormEvent, useMemo } from 'react'
+import { useState, useEffect, type FormEvent, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../../contexts/AuthContext'
+import { supabase } from '../../lib/supabase'
 import { Card, CardContent, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { SaveChangesModal } from '../../components/ui/SaveChangesModal'
 import { DeleteAccountModal } from '../../components/ui/DeleteAccountModal'
-import { User, Mail, Phone, BookOpen, Building, Hash, FileText, Settings, AlertTriangle } from 'lucide-react'
+import { User, Mail, Phone, BookOpen, Building, Hash, FileText, Settings, AlertTriangle, ShieldAlert, Clock } from 'lucide-react'
+
+interface ModerationState {
+    warning_count: number
+    total_warning_count: number
+    suspension_count: number
+    last_warning_at: string | null
+    last_suspended_at: string | null
+    last_reactivated_at: string | null
+}
+
+const MAX_WARNINGS = 5
 
 export function SettingsPage() {
     const { user, updateUser, deleteAccount } = useAuth()
@@ -16,6 +28,22 @@ export function SettingsPage() {
     const [showDeleteModal, setShowDeleteModal] = useState(false)
     const [success, setSuccess] = useState('')
     const [error, setError] = useState('')
+    const [moderation, setModeration] = useState<ModerationState | null>(null)
+    const [moderationLoading, setModerationLoading] = useState(true)
+
+    useEffect(() => {
+        if (!user?.uid) return
+        supabase
+            .from('user_moderation_state')
+            .select('warning_count, total_warning_count, suspension_count, last_warning_at, last_suspended_at, last_reactivated_at')
+            .eq('user_id', user.uid)
+            .maybeSingle()
+            .then(({ data }) => {
+                setModeration(data)
+                setModerationLoading(false)
+            })
+            .catch(() => setModerationLoading(false))
+    }, [user?.uid])
 
     const [formData, setFormData] = useState({
         displayName: user?.displayName || '',
@@ -233,6 +261,111 @@ export function SettingsPage() {
                     </CardContent>
                 </Card>
 
+                {/* Behavior & Conduct */}
+                <Card className="border border-border shadow-sm">
+                    <CardHeader className="border-b border-border">
+                        <div className="flex items-center gap-2">
+                            <ShieldAlert className="w-4 h-4 text-amber-500" />
+                            <h2 className="text-sm font-semibold text-text">Behavior &amp; Conduct</h2>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        {/* Explanatory note */}
+                        <div className="mb-5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm text-amber-700 dark:text-amber-400 space-y-1">
+                            <p className="font-medium">What are behavior warnings?</p>
+                            <p className="text-xs leading-relaxed opacity-90">
+                                UniQuery AI is designed exclusively for academic queries. Sending informal greetings
+                                (e.g. "hi", "hello", "how are you?") or casual off-topic messages triggers an automatic
+                                warning. After <strong>{MAX_WARNINGS} warnings</strong>, your account is automatically
+                                suspended and must be reviewed by an administrator before you can send messages again.
+                                Each warning cycle resets after a successful reactivation.
+                            </p>
+                        </div>
+
+                        {moderationLoading ? (
+                            <div className="flex items-center gap-2 text-sm text-text-muted py-2">
+                                <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                                Loading your conduct record…
+                            </div>
+                        ) : (
+                            <div className="space-y-5">
+                                {/* Warning progress bar */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="font-medium text-text">Active warnings this cycle</span>
+                                        <span className={`font-semibold ${
+                                            !moderation || moderation.warning_count === 0
+                                                ? 'text-green-600'
+                                                : moderation.warning_count >= MAX_WARNINGS
+                                                    ? 'text-red-600'
+                                                    : moderation.warning_count >= 3
+                                                        ? 'text-amber-600'
+                                                        : 'text-amber-500'
+                                        }`}>
+                                            {moderation?.warning_count ?? 0} / {MAX_WARNINGS}
+                                        </span>
+                                    </div>
+                                    <div className="w-full h-2 rounded-full bg-background-secondary overflow-hidden">
+                                        <div
+                                            className={`h-full rounded-full transition-all duration-500 ${
+                                                !moderation || moderation.warning_count === 0
+                                                    ? 'bg-green-500'
+                                                    : moderation.warning_count >= MAX_WARNINGS
+                                                        ? 'bg-red-500'
+                                                        : moderation.warning_count >= 3
+                                                            ? 'bg-amber-500'
+                                                            : 'bg-amber-400'
+                                            }`}
+                                            style={{ width: `${((moderation?.warning_count ?? 0) / MAX_WARNINGS) * 100}%` }}
+                                        />
+                                    </div>
+                                    <p className="text-xs text-text-muted">
+                                        {moderation && moderation.warning_count >= MAX_WARNINGS
+                                            ? 'Your account has been suspended. Please contact an administrator.'
+                                            : `${MAX_WARNINGS - (moderation?.warning_count ?? 0)} warning(s) remaining before automatic suspension.`
+                                        }
+                                    </p>
+                                </div>
+
+                                {/* Stats row */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    <StatTile
+                                        label="Total warnings ever"
+                                        value={String(moderation?.total_warning_count ?? 0)}
+                                        sub="across all cycles"
+                                    />
+                                    <StatTile
+                                        label="Times suspended"
+                                        value={String(moderation?.suspension_count ?? 0)}
+                                        sub="auto or manual"
+                                        danger={(moderation?.suspension_count ?? 0) > 0}
+                                    />
+                                    <StatTile
+                                        label="Last warning"
+                                        value={moderation?.last_warning_at
+                                            ? new Date(moderation.last_warning_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+                                            : 'Never'}
+                                        sub={moderation?.last_warning_at
+                                            ? new Date(moderation.last_warning_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+                                            : '—'}
+                                        icon={Clock}
+                                    />
+                                </div>
+
+                                {moderation?.last_reactivated_at && (
+                                    <p className="text-xs text-text-muted flex items-center gap-1">
+                                        <ShieldAlert className="w-3 h-3 text-green-500" />
+                                        Last reactivated on{' '}
+                                        <span className="font-medium text-text">
+                                            {new Date(moderation.last_reactivated_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                                        </span>
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
                 {/* Danger Zone */}
                 <Card className="border border-red-500/20 shadow-sm">
                     <CardHeader className="border-b border-red-500/20 bg-red-500/5">
@@ -288,6 +421,24 @@ function FormGroup({ label, icon: Icon, children }: { label: string, icon: React
                 {label}
             </label>
             {children}
+        </div>
+    )
+}
+
+function StatTile({ label, value, sub, danger, icon: Icon }: {
+    label: string
+    value: string
+    sub: string
+    danger?: boolean
+    icon?: React.ComponentType<{ className?: string }>
+}) {
+    return (
+        <div className="rounded-lg border border-border bg-background-secondary/50 p-3 space-y-1">
+            <p className="text-xs text-text-muted">{label}</p>
+            <p className={`text-lg font-semibold ${danger ? 'text-red-500' : 'text-text'}`}>
+                {Icon ? <span className="inline-flex items-center gap-1"><Icon className="w-3.5 h-3.5 text-text-muted" />{value}</span> : value}
+            </p>
+            <p className="text-xs text-text-muted">{sub}</p>
         </div>
     )
 }

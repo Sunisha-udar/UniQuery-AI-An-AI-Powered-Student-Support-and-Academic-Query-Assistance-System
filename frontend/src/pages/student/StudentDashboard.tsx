@@ -50,6 +50,7 @@ export function StudentDashboard() {
     const [displayedText, setDisplayedText] = useState('')
     const [error, setError] = useState<string | null>(null)
     const [warningNotice, setWarningNotice] = useState<string | null>(null)
+    const [showSuspendedModal, setShowSuspendedModal] = useState(false)
     const [isLoadingHistory, setIsLoadingHistory] = useState(true)
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
     const [filters, setFilters] = useState({ program: '', department: '', semester: '' })
@@ -267,10 +268,11 @@ export function StudentDashboard() {
             }, accessToken)
 
             if (result.moderation?.flagged) {
-                const warningText = result.moderation.is_suspended
-                    ? 'Your account has been suspended automatically after repeated informal messages.'
-                    : `Warning ${result.moderation.warning_count}/5 issued. Only proper academic questions are allowed.`
-                setWarningNotice(warningText)
+                if (result.moderation.is_suspended) {
+                    setShowSuspendedModal(true)
+                } else {
+                    setWarningNotice(`Warning ${result.moderation.warning_count}/5 issued. Only proper academic questions are allowed.`)
+                }
             }
 
             const assistantMsg: Message = {
@@ -310,7 +312,12 @@ export function StudentDashboard() {
                 assistantMsg.id
             )
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to get answer')
+            const msg = err instanceof Error ? err.message : 'Failed to get answer'
+            if (msg.includes('403') || msg.toLowerCase().includes('suspended')) {
+                setShowSuspendedModal(true)
+            } else {
+                setError(msg)
+            }
             console.error('Query error:', err)
         } finally {
             setIsTyping(false)
@@ -321,8 +328,8 @@ export function StudentDashboard() {
 
 
 
-    // Show suspension modal if user is suspended
-    if (user?.suspended) {
+    // Show suspension modal if user is suspended (at login or triggered mid-session)
+    if (user?.suspended || showSuspendedModal) {
         return (
             <div className="fixed inset-0 z-50 bg-background flex items-center justify-center">
                 <SuspendedAccountModal isOpen={true} />

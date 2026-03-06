@@ -5,18 +5,27 @@ Handles message classification, warning application, and profile checks.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from dataclasses import dataclass
+from functools import lru_cache
 import logging
 import re
 from typing import Any, Optional
 
 from fastapi import HTTPException
 
+from app.services.groq_service import get_groq_service
 from app.services.supabase_client import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
 MAX_WARNINGS = 5
+MAX_LLM_MODERATION_WORDS = 8
+MAX_LLM_MODERATION_CHARS = 80
+LLM_WARNING_CONFIDENCE = 0.8
+LLM_MODERATION_TIMEOUT_SECONDS = 1.2
+
+_MODERATION_LLM_POOL = ThreadPoolExecutor(max_workers=4)
 
 ACADEMIC_KEYWORDS = {
     "attendance", "exam", "exams", "fee", "fees", "scholarship", "hostel", "library",
@@ -46,7 +55,7 @@ PURE_GREETING_PATTERNS = (
     re.compile(r"^(hi|hii|hiii|hello|hey|heyy|heyy|yo|namaste|good morning|good afternoon|good evening)[!. ]*$"),
     re.compile(r"^(hi|hello|hey)[ ,.!]*(how are you|how r u|how're you|what'?s up|wassup|sup)[?.! ]*$"),
     re.compile(r"^(how are you|how r u|what'?s up|wassup|sup)[?.! ]*$"),
-    re.compile(r"^(kya haal hai|kaise ho|kaisa hai|aur batao|kya chal raha hai)[?.! ]*$"),
+    re.compile(r"^(kya haal (hai|h)|haal (hai|h)|kaise ho|kaisa hai|aur batao|kya chal raha hai)[?.! ]*$"),
     re.compile(r"^(thank you|thanks|thx|bye|goodbye|see you)[!. ]*$"),
 )
 
@@ -92,6 +101,10 @@ class ModerationService:
                 reason_detail="Message is a pure greeting or casual small-talk without academic intent.",
                 normalized_text=normalized,
             )
+
+        llm_assessment = self._assess_with_llm(normalized)
+        if llm_assessment is not None:
+            return llm_assessment
 
         return ModerationAssessment(
             flagged=False,
@@ -175,6 +188,62 @@ class ModerationService:
     def _matches_pure_greeting(self, normalized: str) -> bool:
         return any(pattern.fullmatch(normalized) for pattern in PURE_GREETING_PATTERNS)
 
+    def _assess_with_llm(self, normalized: str) -> Optional[ModerationAssessment]:
+        if not self._should_use_llm_moderation(normalized):
+            return None
+
+        try:
+            future = _MODERATION_LLM_POOL.submit(_classify_message_semantically, normalized)
+            content = future.result(timeout=LLM_MODERATION_TIMEOUT_SECONDS)
+            label, confidence, reason = self._parse_llm_result(content)
+
+            if label == "informal_greeting" and confidence >= LLM_WARNING_CONFIDENCE:
+                return ModerationAssessment(
+                    flagged=True,
+                    confidence=confidence,
+                    detector="llm_semantic",
+                    reason_code="semantic_informal_greeting",
+                    reason_detail=reason or "LLM detected an informal greeting or casual chat message.",
+                    normalized_text=normalized,
+                )
+
+            if label == "academic_query":
+                return ModerationAssessment(
+                    flagged=False,
+                    confidence=confidence,
+                    detector="llm_semantic",
+                    reason_code="academic_query_detected",
+                    reason_detail=reason or "LLM recognized the message as a valid academic query.",
+                    normalized_text=normalized,
+                )
+        except TimeoutError:
+            logger.warning("LLM moderation fallback timed out for message: %s", normalized)
+        except Exception as exc:
+            logger.warning("LLM moderation fallback failed: %s", exc)
+
+        return None
+
+    @staticmethod
+    def _should_use_llm_moderation(normalized: str) -> bool:
+        if not normalized:
+            return False
+
+        words = normalized.split()
+        return len(words) <= MAX_LLM_MODERATION_WORDS and len(normalized) <= MAX_LLM_MODERATION_CHARS
+
+    @staticmethod
+    def _parse_llm_result(content: str) -> tuple[str, float, str]:
+        parts = [part.strip() for part in content.split("|", 2)]
+        label = parts[0].lower() if parts else "other"
+
+        try:
+            confidence = round(max(0.0, min(float(parts[1]), 1.0)), 3) if len(parts) > 1 else 0.0
+        except ValueError:
+            confidence = 0.0
+
+        reason = parts[2] if len(parts) > 2 else ""
+        return label, confidence, reason
+
 
 _moderation_service: Optional[ModerationService] = None
 
@@ -184,3 +253,33 @@ def get_moderation_service() -> ModerationService:
     if _moderation_service is None:
         _moderation_service = ModerationService()
     return _moderation_service
+
+
+@lru_cache(maxsize=256)
+def _classify_message_semantically(normalized: str) -> str:
+    groq_service = get_groq_service()
+    response = groq_service.client.chat.completions.create(
+        model=groq_service.model,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "Classify the user's message for moderation.\n"
+                    "Return exactly one line in this format: label|confidence|reason\n"
+                    "Allowed labels:\n"
+                    "- informal_greeting: greetings, small talk, asking how the bot is, casual banter, thanks, bye\n"
+                    "- academic_query: genuine university/academic/help-seeking question\n"
+                    "- other: not an informal greeting and not an academic query\n"
+                    "Use confidence from 0.00 to 1.00."
+                ),
+            },
+            {
+                "role": "user",
+                "content": normalized,
+            },
+        ],
+        max_tokens=40,
+        temperature=0.0,
+    )
+
+    return (response.choices[0].message.content or "").strip()
