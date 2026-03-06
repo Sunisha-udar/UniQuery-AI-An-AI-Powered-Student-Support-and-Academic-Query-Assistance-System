@@ -21,6 +21,7 @@ export function UserActionMenu({
     onDeleteUser
 }: UserActionMenuProps) {
     const [isOpen, setIsOpen] = useState(false)
+    const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 })
     const menuRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
@@ -36,6 +37,16 @@ export function UserActionMenu({
 
         return () => {
             document.removeEventListener('mousedown', handleClickOutside)
+        }
+    }, [isOpen])
+
+    useEffect(() => {
+        if (isOpen && menuRef.current) {
+            const rect = menuRef.current.getBoundingClientRect()
+            setMenuPosition({
+                top: rect.bottom + 4,
+                right: window.innerWidth - rect.right
+            })
         }
     }, [isOpen])
 
@@ -55,7 +66,10 @@ export function UserActionMenu({
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 top-full mt-1 w-48 bg-surface border border-border rounded-lg shadow-xl z-10 py-1 animate-in fade-in zoom-in-95 duration-200">
+                <div className="fixed w-48 bg-surface border border-border rounded-lg shadow-xl z-50 py-1 animate-in fade-in zoom-in-95 duration-200" style={{
+                    top: `${menuPosition.top}px`,
+                    right: `${menuPosition.right}px`
+                }}>
                     {/* View Details */}
                     <button
                         onClick={() => handleAction(onViewDetails)}

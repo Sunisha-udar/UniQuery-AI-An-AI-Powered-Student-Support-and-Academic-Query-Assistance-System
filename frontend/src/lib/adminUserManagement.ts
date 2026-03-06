@@ -56,24 +56,35 @@ export async function getAllUsers(): Promise<FullUserProfile[]> {
  * Suspend or activate a user account (admin only)
  */
 export async function suspendUser(userId: string, suspend: boolean): Promise<void> {
-    const { error } = await supabase
-        .from('profiles')
-        .update({
-            suspended: suspend,
-            updated_at: new Date().toISOString()
-        })
-        .eq('id', userId)
-
-    if (error) {
-        console.error('Error updating user suspension status:', error)
-        throw new Error(`Failed to ${suspend ? 'suspend' : 'activate'} user: ${error.message}`)
-    }
-
-    // If suspending, also sign out the user by invalidating their session
     if (suspend) {
-        // Note: Supabase doesn't provide a way to sign out other users directly
-        // The user will be prevented from making requests due to RLS policies
+        // Manual suspension by admin
+        const { error } = await supabase
+            .from('profiles')
+            .update({
+                suspended: true,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', userId)
+
+        if (error) {
+            console.error('Error suspending user:', error)
+            throw new Error(`Failed to suspend user: ${error.message}`)
+        }
+
         console.log(`User ${userId} suspended. They will be blocked on next request.`)
+    } else {
+        // Reactivation - use RPC function to reset warnings but preserve suspension count
+        const { error } = await supabase.rpc('reactivate_user_account', {
+            p_user_id: userId,
+            p_reason: 'Admin manually reactivated account'
+        })
+
+        if (error) {
+            console.error('Error reactivating user:', error)
+            throw new Error(`Failed to activate user: ${error.message}`)
+        }
+
+        console.log(`User ${userId} reactivated with warnings reset to 0`)
     }
 }
 

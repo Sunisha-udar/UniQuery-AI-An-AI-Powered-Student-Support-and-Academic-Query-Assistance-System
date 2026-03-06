@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
@@ -18,6 +19,39 @@ import { FAQPage } from './pages/student/FAQPage'
 import { BookmarksPage } from './pages/student/BookmarksPage'
 import { DashboardLayoutWrapper } from './components/layout/DashboardLayoutWrapper'
 import './index.css'
+
+const ADMIN_ROUTE_PREFIXES = [
+  '/admin',
+  '/admin/documents',
+  '/admin/queries',
+  '/admin/analytics',
+  '/admin/faqs',
+  '/admin/settings',
+  '/admin/users',
+  '/admin/support',
+]
+
+const STUDENT_ROUTE_PREFIXES = [
+  '/student',
+  '/student/settings',
+  '/student/faqs',
+  '/student/bookmarks',
+]
+
+function normalizePath(path: string) {
+  if (path.length > 1 && path.endsWith('/')) {
+    return path.slice(0, -1)
+  }
+  return path
+}
+
+function isPathAllowedForRole(path: string, role: 'admin' | 'student') {
+  const normalizedPath = normalizePath(path)
+  const prefixes = role === 'admin' ? ADMIN_ROUTE_PREFIXES : STUDENT_ROUTE_PREFIXES
+  return prefixes.some((prefix) =>
+    normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`)
+  )
+}
 
 function AuthLoader({ children }: { children: React.ReactNode }) {
   const { loading, profileLoading } = useAuth()
@@ -54,7 +88,48 @@ function RootRedirect() {
     return <Navigate to="/login" replace />
   }
 
+  const lastVisitedPath = sessionStorage.getItem('lastVisitedPath')
+  const isRolePathValid = lastVisitedPath
+    ? isPathAllowedForRole(lastVisitedPath, user.role)
+    : false
+
+  if (lastVisitedPath && isRolePathValid) {
+    return <Navigate to={normalizePath(lastVisitedPath)} replace />
+  }
+
   return <Navigate to={user.role === 'admin' ? '/admin' : '/student'} replace />
+}
+
+function CatchAllRedirect() {
+  const location = useLocation()
+  const normalizedPath = normalizePath(location.pathname)
+
+  if (normalizedPath !== location.pathname) {
+    return <Navigate to={`${normalizedPath}${location.search}${location.hash}`} replace />
+  }
+
+  return <RootRedirect />
+}
+
+function RoutePersistence() {
+  const location = useLocation()
+
+  useEffect(() => {
+    if (location.pathname === '/login' || location.pathname === '/signup') return
+
+    const isRoleRoute =
+      location.pathname === '/admin' ||
+      location.pathname.startsWith('/admin/') ||
+      location.pathname === '/student' ||
+      location.pathname.startsWith('/student/')
+
+    if (!isRoleRoute) return
+
+    const currentPath = `${normalizePath(location.pathname)}${location.search}${location.hash}`
+    sessionStorage.setItem('lastVisitedPath', currentPath)
+  }, [location.pathname, location.search, location.hash])
+
+  return null
 }
 function App() {
   return (
@@ -62,42 +137,49 @@ function App() {
       <AuthProvider>
         <BrowserRouter>
           <AuthLoader>
+            <RoutePersistence />
             <Routes>
               {/* Auth Routes */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
 
               {/* Student Routes */}
-              <Route element={
-                <ProtectedRoute allowedRoles={['student']}>
-                  <DashboardLayoutWrapper variant="student" />
-                </ProtectedRoute>
-              }>
-                <Route path="/student" element={<StudentDashboard />} />
-                <Route path="/student/settings" element={<SettingsPage />} />
-                <Route path="/student/faqs" element={<FAQPage />} />
-                <Route path="/student/bookmarks" element={<BookmarksPage />} />
+              <Route
+                path="/student"
+                element={
+                  <ProtectedRoute allowedRoles={['student']}>
+                    <DashboardLayoutWrapper variant="student" />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<StudentDashboard />} />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="faqs" element={<FAQPage />} />
+                <Route path="bookmarks" element={<BookmarksPage />} />
               </Route>
 
               {/* Admin Routes */}
-              <Route element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <DashboardLayoutWrapper variant="admin" />
-                </ProtectedRoute>
-              }>
-                <Route path="/admin" element={<AdminDashboard />} />
-                <Route path="/admin/documents" element={<AdminDocuments />} />
-                <Route path="/admin/queries" element={<AdminQueries />} />
-                <Route path="/admin/analytics" element={<AdminAnalytics />} />
-                <Route path="/admin/faqs" element={<AdminFAQs />} />
-                <Route path="/admin/settings" element={<AdminSettings />} />
-                <Route path="/admin/users" element={<AdminUsers />} />
-                <Route path="/admin/support" element={<AdminSupport />} />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <DashboardLayoutWrapper variant="admin" />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<AdminDashboard />} />
+                <Route path="documents" element={<AdminDocuments />} />
+                <Route path="queries" element={<AdminQueries />} />
+                <Route path="analytics" element={<AdminAnalytics />} />
+                <Route path="faqs" element={<AdminFAQs />} />
+                <Route path="settings" element={<AdminSettings />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="support" element={<AdminSupport />} />
               </Route>
 
               {/* Default redirect */}
               <Route path="/" element={<RootRedirect />} />
-              <Route path="*" element={<Navigate to="/login" replace />} />
+              <Route path="*" element={<CatchAllRedirect />} />
             </Routes>
           </AuthLoader>
         </BrowserRouter>
