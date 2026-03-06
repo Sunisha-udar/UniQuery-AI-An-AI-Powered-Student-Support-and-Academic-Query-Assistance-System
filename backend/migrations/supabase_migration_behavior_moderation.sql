@@ -355,12 +355,12 @@ BEGIN
     VALUES (p_user_id)
     ON CONFLICT (user_id) DO NOTHING;
 
-    UPDATE user_moderation_state
-    SET suspension_count = suspension_count + 1,
+    UPDATE user_moderation_state AS ums
+    SET suspension_count = ums.suspension_count + 1,
         last_suspended_at = NOW(),
         updated_at = NOW()
-    WHERE user_id = p_user_id
-    RETURNING suspension_count
+    WHERE ums.user_id = p_user_id
+    RETURNING ums.suspension_count
     INTO v_suspension_count;
 
     INSERT INTO moderation_events (
