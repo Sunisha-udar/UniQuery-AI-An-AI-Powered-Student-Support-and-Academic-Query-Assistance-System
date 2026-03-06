@@ -124,6 +124,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
     }
 
+    const isSameUserEvent = (sessionUser: SupabaseUser): boolean => {
+        return userRef.current?.uid === sessionUser.id
+    }
+
     useEffect(() => {
         let mounted = true
 
@@ -196,6 +200,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
                 try {
                     if (event === 'SIGNED_IN' && session?.user) {
+                        // Supabase can emit SIGNED_IN again during token recovery/refresh when returning to a tab.
+                        // If it's the same user, keep UI stable and skip blocking profile fetch.
+                        if (isSameUserEvent(session.user)) {
+                            if (mounted) {
+                                setLoading(false)
+                                setProfileLoading(false)
+                            }
+                            return
+                        }
+
                         setUser(prev => prev && prev.uid === session.user.id ? prev : createSessionFallbackUser(session.user))
                         setProfileLoading(true)
                         try {
