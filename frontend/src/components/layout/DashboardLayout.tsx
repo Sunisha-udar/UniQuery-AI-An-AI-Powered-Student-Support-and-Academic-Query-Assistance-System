@@ -3,7 +3,7 @@ import { Sidebar } from './Sidebar'
 import { MobileHeader } from './MobileHeader'
 import { NavigationDrawer } from './NavigationDrawer'
 import { motion } from 'framer-motion'
-import { LayoutDashboard, FileText, MessageSquare, BarChart3, Users } from 'lucide-react'
+import { LayoutDashboard, FileText, MessageSquare, BarChart3, Users, LifeBuoy } from 'lucide-react'
 
 interface NavItem {
     icon: React.ElementType
@@ -23,6 +23,7 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
     { icon: MessageSquare, label: 'Queries', href: '/admin/queries' },
     { icon: BarChart3, label: 'Analytics', href: '/admin/analytics' },
     { icon: Users, label: 'Users', href: '/admin/users' },
+    { icon: LifeBuoy, label: 'Support', href: '/admin/support' },
 ]
 
 export function DashboardLayout({

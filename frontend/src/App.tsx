@@ -12,6 +12,7 @@ import { AdminAnalytics } from './pages/admin/AdminAnalytics'
 import { AdminSettings } from './pages/admin/AdminSettings'
 import { AdminUsers } from './pages/admin/AdminUsers'
 import { AdminFAQs } from './pages/admin/AdminFAQs'
+import { AdminSupport } from './pages/admin/AdminSupport'
 import { SettingsPage } from './pages/student/SettingsPage'
 import { FAQPage } from './pages/student/FAQPage'
 import { BookmarksPage } from './pages/student/BookmarksPage'
@@ -91,6 +92,7 @@ function App() {
                 <Route path="/admin/faqs" element={<AdminFAQs />} />
                 <Route path="/admin/settings" element={<AdminSettings />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
+                <Route path="/admin/support" element={<AdminSupport />} />
               </Route>
 
               {/* Default redirect */}

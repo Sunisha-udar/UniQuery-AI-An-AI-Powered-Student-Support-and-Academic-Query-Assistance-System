@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { SaveChangesModal } from '../../components/ui/SaveChangesModal'
 import { DeleteAccountModal } from '../../components/ui/DeleteAccountModal'
+import { SupportRequestModal } from '../../components/support/SupportRequestModal'
 import { User, Mail, Phone, BookOpen, Building, Hash, FileText, Settings, AlertTriangle, ShieldAlert, Clock } from 'lucide-react'
 
 interface ModerationState {
@@ -26,6 +27,7 @@ export function SettingsPage() {
     const navigate = useNavigate()
     const [showSaveModal, setShowSaveModal] = useState(false)
     const [showDeleteModal, setShowDeleteModal] = useState(false)
+    const [showSupportModal, setShowSupportModal] = useState(false)
     const [success, setSuccess] = useState('')
     const [error, setError] = useState('')
     const [moderation, setModeration] = useState<ModerationState | null>(null)
@@ -271,9 +273,9 @@ export function SettingsPage() {
                     </CardHeader>
                     <CardContent>
                         {/* Explanatory note */}
-                        <div className="mb-5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm text-amber-700 dark:text-amber-400 space-y-1">
+                        <div className="mb-5 p-3 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/30 text-sm text-amber-950 dark:text-amber-400 space-y-1">
                             <p className="font-medium">What are behavior warnings?</p>
-                            <p className="text-xs leading-relaxed opacity-90">
+                            <p className="text-xs leading-relaxed text-amber-950 dark:text-amber-400/90">
                                 UniQuery AI is designed exclusively for academic queries. Sending informal greetings
                                 (e.g. "hi", "hello", "how are you?") or casual off-topic messages triggers an automatic
                                 warning. After <strong>{MAX_WARNINGS} warnings</strong>, your account is automatically
@@ -305,7 +307,7 @@ export function SettingsPage() {
                                             {moderation?.warning_count ?? 0} / {MAX_WARNINGS}
                                         </span>
                                     </div>
-                                    <div className="w-full h-2 rounded-full bg-background-secondary overflow-hidden">
+                                    <div className="w-full h-2 rounded-full bg-gray-200 dark:bg-background-secondary overflow-hidden">
                                         <div
                                             className={`h-full rounded-full transition-all duration-500 ${
                                                 !moderation || moderation.warning_count === 0
@@ -366,6 +368,32 @@ export function SettingsPage() {
                     </CardContent>
                 </Card>
 
+                <Card className="border border-border shadow-sm">
+                    <CardHeader className="border-b border-border">
+                        <div className="flex items-center gap-2">
+                            <ShieldAlert className="w-4 h-4 text-red-500" />
+                            <h2 className="text-sm font-semibold text-text">Support</h2>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                            <div className="flex-1">
+                                <h3 className="font-medium text-text">Contact Admin Support</h3>
+                                <p className="mt-1 text-sm text-text-muted">
+                                    Need help with account issues, warnings, or anything that needs an admin review? Send a support request directly from here.
+                                </p>
+                            </div>
+                            <Button
+                                type="button"
+                                onClick={() => setShowSupportModal(true)}
+                                className="w-full md:w-auto bg-red-600 hover:bg-red-700"
+                            >
+                                Open Support Form
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+
                 {/* Danger Zone */}
                 <Card className="border border-red-500/20 shadow-sm">
                     <CardHeader className="border-b border-red-500/20 bg-red-500/5">
@@ -408,6 +436,12 @@ export function SettingsPage() {
                     onClose={() => setShowDeleteModal(false)}
                     onConfirm={handleDeleteAccount}
                 />
+
+                <SupportRequestModal
+                    isOpen={showSupportModal}
+                    onClose={() => setShowSupportModal(false)}
+                    defaultSubject="Student support request"
+                />
             </div>
         </div>
     )
@@ -433,7 +467,7 @@ function StatTile({ label, value, sub, danger, icon: Icon }: {
     icon?: React.ComponentType<{ className?: string }>
 }) {
     return (
-        <div className="rounded-lg border border-border bg-background-secondary/50 p-3 space-y-1">
+        <div className="rounded-lg border border-border bg-surface-hover p-3 space-y-1">
             <p className="text-xs text-text-muted">{label}</p>
             <p className={`text-lg font-semibold ${danger ? 'text-red-500' : 'text-text'}`}>
                 {Icon ? <span className="inline-flex items-center gap-1"><Icon className="w-3.5 h-3.5 text-text-muted" />{value}</span> : value}

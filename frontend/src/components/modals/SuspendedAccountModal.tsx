@@ -1,8 +1,9 @@
-import { AlertCircle, LogOut } from 'lucide-react'
+import { AlertCircle, LifeBuoy, LogOut } from 'lucide-react'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { useAuth } from '../../contexts/AuthContext'
 import { useState, useEffect, useRef } from 'react'
+import { SupportRequestModal } from '../support/SupportRequestModal'
 
 interface SuspendedAccountModalProps {
     isOpen: boolean
@@ -11,6 +12,7 @@ interface SuspendedAccountModalProps {
 export function SuspendedAccountModal({ isOpen }: SuspendedAccountModalProps) {
     const { logout, user } = useAuth()
     const [loading, setLoading] = useState(false)
+    const [supportOpen, setSupportOpen] = useState(false)
 
     const isMounted = useRef(true)
     const [error, setError] = useState<string | null>(null)
@@ -90,22 +92,38 @@ export function SuspendedAccountModal({ isOpen }: SuspendedAccountModalProps) {
                     )}
 
                     <p className="text-xs text-text-muted">
-                        If you believe this is a mistake, please contact your administrator.
+                        If you believe this is a mistake, send a support request so the admin team can review your account.
                     </p>
                 </div>
             </ModalBody>
 
-            <ModalFooter>
+            <ModalFooter className="flex-col-reverse sm:flex-row">
+                <Button
+                    variant="secondary"
+                    onClick={() => setSupportOpen(true)}
+                    className="w-full sm:w-auto border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-200 dark:hover:bg-red-500/15"
+                >
+                    <LifeBuoy className="w-4 h-4 mr-2" />
+                    Contact Support
+                </Button>
                 <Button
                     variant="primary"
                     onClick={handleLogout}
                     loading={loading}
-                    className="w-full bg-red-500 hover:bg-red-600 focus-visible:outline-red-500"
+                    className="w-full sm:w-auto bg-red-500 hover:bg-red-600 focus-visible:outline-red-500"
                 >
                     <LogOut className="w-4 h-4 mr-2" />
                     Sign Out
                 </Button>
             </ModalFooter>
+
+            <SupportRequestModal
+                isOpen={supportOpen}
+                onClose={() => setSupportOpen(false)}
+                defaultSubject="Suspended account review request"
+                title="Request Account Review"
+                description="Explain why your account should be reviewed or reactivated. Admins will see this even while your account is suspended."
+            />
         </Modal>
     )
 }

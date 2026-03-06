@@ -24,7 +24,8 @@ import {
     PanelLeftClose,
     PanelLeftOpen,
     Users,
-    Bookmark
+    Bookmark,
+    LifeBuoy
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -49,6 +50,7 @@ const ADMIN_NAV: NavItem[] = [
     { icon: BarChart3, label: 'Analytics', href: '/admin/analytics' },
     { icon: HelpCircle, label: 'FAQs', href: '/admin/faqs' },
     { icon: Users, label: 'Users', href: '/admin/users' },
+    { icon: LifeBuoy, label: 'Support', href: '/admin/support' },
 ]
 
 export function Sidebar({
