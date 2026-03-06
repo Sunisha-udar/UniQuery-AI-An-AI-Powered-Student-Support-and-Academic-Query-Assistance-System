@@ -1,6 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap');
 @import "tailwindcss";
 
+/* Tie Tailwind's dark: variant to the app's data-theme toggle (not OS preference) */
+@custom-variant dark ([data-theme="dark"] &);
+
 /* === Premium Design System: UniQuery AI === */
 
 @theme {
