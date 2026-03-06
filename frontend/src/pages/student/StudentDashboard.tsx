@@ -494,9 +494,9 @@ export function StudentDashboard() {
 
                         {warningNotice && (
                             <div className="flex justify-center my-4">
-                                <div className="flex items-center gap-2 rounded-xl border border-red-400 bg-red-100 px-5 py-3 text-red-800 shadow-[0_10px_30px_-16px_rgba(220,38,38,0.55)] dark:border-red-500/40 dark:bg-red-500/18 dark:text-red-200">
-                                    <AlertCircle className="h-4 w-4 flex-shrink-0 text-red-600 dark:text-red-300" />
-                                    <span className="text-sm font-medium tracking-[0.01em]">{warningNotice}</span>
+                                <div className="flex items-center gap-2 rounded-xl border border-red-600/60 bg-red-600 px-5 py-3 text-white shadow-[0_14px_34px_-18px_rgba(185,28,28,0.75)] dark:border-red-400/70 dark:bg-red-500 dark:text-white">
+                                    <AlertCircle className="h-4 w-4 flex-shrink-0 text-white" />
+                                    <span className="text-sm font-semibold tracking-[0.01em]">{warningNotice}</span>
                                 </div>
                             </div>
                         )}
