@@ -31,6 +31,15 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
+def get_cors_origins() -> list[str]:
+    """Parse comma-separated origins from settings/env for CORS middleware."""
+    raw_origins = os.getenv("CORS_ORIGINS", settings.cors_origins)
+    origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+    if not origins:
+        origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    return origins
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -70,9 +79,13 @@ app = FastAPI(
 )
 
 # CORS configuration
+cors_origins = get_cors_origins()
+logger.info(f"CORS origins configured: {cors_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

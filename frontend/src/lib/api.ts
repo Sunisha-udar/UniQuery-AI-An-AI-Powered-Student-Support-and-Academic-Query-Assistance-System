@@ -3,6 +3,8 @@
  * Handles all communication with FastAPI backend
  */
 
+const FALLBACK_PROD_API_URL = 'https://uniquery-backend.onrender.com';
+
 // Smart API URL detection for mobile/ngrok support
 const getApiBaseUrl = (): string => {
   // 1. Check environment variable first
@@ -26,10 +28,10 @@ const getApiBaseUrl = (): string => {
     return '';
   }
 
-  // 4. If in production (vercel/deployed), use same origin
+  // 4. If in production (vercel/deployed), default to hosted backend
   if (currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
-    const apiUrl = `${window.location.protocol}//${window.location.host}`;
-    console.log('[API] Detected production environment, using:', apiUrl);
+    const apiUrl = FALLBACK_PROD_API_URL;
+    console.log('[API] Detected production environment, using fallback backend:', apiUrl);
     return apiUrl;
   }
 
@@ -46,7 +48,7 @@ const warmUpBackend = async () => {
   try {
     console.log('[API] Warming up backend...');
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000); // 5s timeout
+    const timeout = setTimeout(() => controller.abort(), 25000); // 25s timeout for cold starts
 
     await fetch(`${API_BASE_URL}/health`, {
       signal: controller.signal,
