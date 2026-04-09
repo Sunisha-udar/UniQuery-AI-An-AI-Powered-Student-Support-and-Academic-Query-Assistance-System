@@ -101,6 +101,8 @@ app.include_router(debug.router, prefix="/api/debug", tags=["Debug"])
 
 @app.get("/health")
 @app.get("/api/health")
+@app.head("/health")
+@app.head("/api/health")
 async def health_check():
     """
     Health check endpoint with Qdrant and Database info
